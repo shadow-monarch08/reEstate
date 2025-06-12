@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "968831265305",
+    "project_id": "re-estate-5a8d9",
+    "storage_bucket": "re-estate-5a8d9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:968831265305:android:1b0b60c044e7ecb49b5888",
+        "android_client_info": {
+          "package_name": "com.anonymous.Realter_ReEstateapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "968831265305-07b9jha3vvests18f9faleboq3ns7uve.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anonymous.Realter_ReEstateapp",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "968831265305-kop32oo9rti082j84rbq91v5i0pig8lb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anonymous.Realter_ReEstateapp",
+            "certificate_hash": "d33bba7353fb39293851e4663fb3ebf77ae201e0"
+          }
+        },
+        {
+          "client_id": "968831265305-gmpuntbd6o966usauo57ell80j428kcj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtLSEf3zYOZ0L9HQ_C2ORXWHW4sqWx84Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "968831265305-gmpuntbd6o966usauo57ell80j428kcj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "968831265305-hhk4831r5rs3m7bjqrebn4imc8j70if9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.anonymous.RealterReEstate"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
