@@ -170,14 +170,31 @@ export interface ReviewReturn {
   review: string;
 }
 
+interface UnreadMessage {
+  id: string;
+  message: string;
+  created_at: Date;
+  file: string;
+  property_ref: string;
+}
+
+export interface File {
+  url: string;
+  type: string;
+  size: string;
+}
+
 export interface ChatOverviewReturnType {
   agent_avatar: string;
   agent_id: string;
   agent_name: string;
   conversation_id: string;
-  last_message: string;
-  last_message_time: string; // ISO timestamp (can use Date if parsed)
-  unread_count: number;
+  last_message?: string;
+  last_message_time?: string | null; // ISO timestamp (can use Date if parsed)
+  last_file?: File | null;
+  last_property_ref?: propertyReturnType | null;
+  unread_count?: number;
+  unread_messages?: Array<UnreadMessage>;
 }
 
 export interface ChatReturnType {
@@ -187,7 +204,7 @@ export interface ChatReturnType {
   sender_id: string;
   status: "sent" | "received" | "read";
   property_ref: string;
-  file: string;
+  file: File;
 }
 
 export const login = async (): Promise<AuthError | null> => {
@@ -524,6 +541,27 @@ export const getPropertyDetail = async ({
   }
 };
 
+export const getPropertyFromId = async ({
+  propertyIdArr,
+}: {
+  propertyIdArr: Array<string>;
+}) => {
+  try {
+    const { data, error } = await Supabase.from("properties")
+      .select("id, name, image, address, price, rating")
+      .in("id", propertyIdArr);
+
+      if(error){
+        console.error(error)
+        return null
+      }
+      return data
+  } catch (error) {
+    console.error(error)
+    return null
+  }
+};
+
 // const sample_data = {
 //   area_summary: { max_area: 3377, min_area: 522 },
 //   price_ranges: [
@@ -817,17 +855,26 @@ export const getConverationIds = async ({
 export const getChatOverview = async ({
   user_id,
   range,
+  conversation_arr,
 }: {
   user_id: string | undefined;
   range: Array<number | number>;
+  conversation_arr: {
+    conversation_id: string;
+    last_message_time: Date;
+  }[];
 }): Promise<Array<ChatOverviewReturnType> | null> => {
   try {
     if (!user_id) {
       return null;
     }
-    const { data, error } = await Supabase.rpc("get_user_chat_overview", {
-      p_user_id: user_id,
-    })
+    const { data, error } = await Supabase.rpc(
+      "get_chat_overview_with_unread_optimized",
+      {
+        p_user_id: user_id,
+        p_conversations: conversation_arr,
+      }
+    )
       .select("*")
       .range(range[0], range[1]);
     if (error) {
@@ -856,13 +903,13 @@ export const getCompleteChat = async ({
         )
         .eq("conversation_id", conversation_id)
         .or(`sender_id.eq.${agent_id}, receiver_id.eq.${agent_id}`)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: true });
       if (error) {
         console.error(error);
         return null;
       }
 
-      return data;
+      return data.reverse();
     }
     return null;
   } catch (error) {
@@ -887,5 +934,34 @@ export const changetMessageStatus = async ({
   } catch (error) {
     console.error(error);
     return error;
+  }
+};
+
+export const createConversation = async ({
+  data,
+}: {
+  data: {
+    user_id: string;
+    agent_id: string;
+  };
+}): Promise<{ id: string } | null> => {
+  try {
+    const { data: conversationId, error } = await Supabase.from("conversations")
+      .insert([
+        {
+          agent_id: data.agent_id,
+          user_id: data.user_id,
+        },
+      ])
+      .select("id")
+      .single();
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    return conversationId;
+  } catch (error) {
+    console.error(error);
+    return null;
   }
 };

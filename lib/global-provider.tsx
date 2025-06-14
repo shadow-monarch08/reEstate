@@ -21,6 +21,11 @@ import {
 } from "./supabase";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { saveProfileImage, savePropertyImage } from "./database/saveImage";
+import {
+  getAllChatOverviews,
+  updateConversation,
+} from "./database/chatServices";
 
 interface User {
   id: string | undefined;
@@ -63,6 +68,10 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     Array<ChatOverviewReturnType>
   >([]);
   const [channels, setChannels] = useState({});
+  const [conversationSyncTime, setConversationSyncTime] = useState<
+    Array<{ conversation_id: string; last_message_time: Date }>
+  >([]);
+  const [activeConversationId, setActiveConversationId] = useState(null);
 
   const {
     data: user,
@@ -80,7 +89,8 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fn: getChatOverview,
     params: {
       user_id: user?.id,
-      range: [0, 5],
+      range: [0, 15],
+      conversation_arr: conversationSyncTime,
     },
     skip: true,
   });
@@ -115,6 +125,15 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fn: getFilterDetail,
   });
 
+  const { data: inDeviceChatOverview, refetch: fetchInDeviceChatOverview } =
+    useSupabase({
+      fn: getAllChatOverviews,
+      params:{
+        range: [0, 15]
+      },
+      skip: true,
+    });
+
   useEffect(() => {
     refetchWishlist({
       userId: user?.id,
@@ -122,11 +141,18 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fetchConverstionIds({
       userId: user?.id,
     });
-    fetchChatOverview({
-      user_id: user?.id,
-      range: [0, 5],
-    });
   }, [user]);
+
+  useEffect(() => {
+    fetchInDeviceChatOverview
+  }, []);
+
+  useEffect(() => {
+    if(inDeviceChatOverview){
+      setChatOverviewManager(inDeviceChatOverview)
+    }
+  }, [inDeviceChatOverview])
+  
 
   useEffect(() => {
     if (wishlistManager.operation === "insert") {
@@ -153,10 +179,36 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wishlists]);
 
-  useEffect(() => {
+  const handleChatOverViewUpdate = async () => {
     if (chatOverView) {
       setChatOverviewManager(chatOverView);
+      for (let index = 0; index < chatOverView.length; index++) {
+        const obj = chatOverView[index];
+
+        const uploadLink = await saveProfileImage(
+          obj.agent_avatar,
+          obj.agent_id
+        );
+
+        if (!!obj.unread_messages) {
+          for (let i = 0; i < obj.unread_messages?.length; i++) {}
+        }
+
+        obj.agent_avatar = uploadLink;
+        delete obj.unread_messages;
+        delete obj.last_file;
+        delete obj.last_property_ref;
+        delete obj.last_message_time;
+        delete obj.last_message;
+        if ((obj.unread_count = 0)) delete obj.unread_count;
+
+        updateConversation(obj.conversation_id, obj);
+      }
     }
+  };
+
+  useEffect(() => {
+    handleChatOverViewUpdate();
   }, [chatOverView]);
 
   useEffect(() => {
@@ -168,26 +220,41 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
           .on(
             "postgres_changes",
             {
-              event: "INSERT",
+              event: "*",
               schema: "public",
               table: "messages",
               filter: `conversation_id=eq.${obj.id}`,
             },
-            (payload) =>
-              payload.new.sender_id === user?.id
-                ? null
-                : setChatOverviewManager((prev) =>
+            (payload) => {
+              switch (payload.eventType) {
+                case "INSERT":
+                  setChatOverviewManager((prev) =>
                     prev.map((item) =>
-                      item.conversation_id === obj.id
+                      item.conversation_id === obj.id &&
+                      item.conversation_id !== activeConversationId
                         ? {
                             ...item,
-                            unread_count: item.unread_count + 1,
+                            unread_count:
+                              payload.new.sender_id === user?.id
+                                ? 0
+                                : item.unread_count ?? 0 + 1,
                             last_message: payload.new.message,
                             last_message_time: payload.new.created_at,
                           }
                         : item
                     )
-                  )
+                  );
+                  const unread_count =
+                    chatOverviewManager.filter(
+                      (item) =>
+                        item.conversation_id === obj.id &&
+                        item.conversation_id !== activeConversationId
+                    )[0].unread_count ?? 0 + 1;
+                  updateConversation(obj.id, { unread_count: unread_count });
+                  break;
+                case "UPDATE":
+              }
+            }
           )
           .subscribe();
         channels[obj.id] = channel;

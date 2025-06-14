@@ -1,7 +1,7 @@
 import { Alert } from "react-native";
 import { useEffect, useState, useCallback, Dispatch, SetStateAction } from "react";
 
-type ParamValue = string | number | Array<number | string> | undefined | null;
+type ParamValue = string | number | Array<number | string | Partial<any>> | undefined | null;
 
 interface UseSupabaseOptions<T, P extends Record<string, ParamValue>> {
   fn: (params: P) => Promise<T>;
