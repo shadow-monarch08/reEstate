@@ -4,16 +4,13 @@ export const MessageSchema: ObjectSchema = {
   name: "Message",
   primaryKey: "id",
   properties: {
-    id: {
-      type: "uuid",
-      default: () => new BSON.UUID(),
-    },
+    id: { type: "string" },
     conversation_id: { type: "string" },
     sender_id: { type: "string" },
     receiver_id: { type: "string" },
-    file: { type: "File", optional: true },
-    property_ref: { type: "Property", optional: true },
-    message: { type: "string" },
+    file: { type: "object", objectType: "File", optional: true },
+    property_ref: { type: "object", objectType: "Property", optional: true },
+    message: { type: "string", optional: true },
     created_at: { type: "date" },
     status: { type: "string" }, // e.g., 'sent', 'delivered', 'read'
   },

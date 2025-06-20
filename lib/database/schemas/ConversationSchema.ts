@@ -21,10 +21,13 @@ export const ConversationSchema: ObjectSchema = {
       type: "string",
     },
     avatar_last_update: {
-      type: "date"
+      type: "string",
+    },
+    last_message_time: {
+      type: "string",
     },
     unread_count: {
-      type: "int"
-    }
+      type: "int",
+    },
   },
 };

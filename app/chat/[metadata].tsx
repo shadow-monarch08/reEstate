@@ -6,12 +6,19 @@ import { Image } from "react-native";
 import icons from "@/constants/icons";
 import { useSupabase } from "@/lib/useSupabase";
 import {
-  changetMessageStatus,
+  changeMessageStatus,
   ChatReturnType,
   getCompleteChat,
+  Message,
+  Supabase,
 } from "@/lib/supabase";
 import ChatInput from "@/components/ChatInput";
 import { useGlobalContext } from "@/lib/global-provider";
+import {
+  getMessagesByConversation,
+  updateConversation,
+  updateMessage,
+} from "@/lib/database/chatServices";
 
 interface Metadata {
   conversation_id: string;
@@ -32,7 +39,7 @@ const HeaderComponent = ({
           <Image source={icons.back_arrow} className="size-7" />
         </TouchableOpacity>
         <Image
-          source={{ uri: agentMetadata?.avatar_url }}
+          src={agentMetadata?.avatar_url}
           className="size-14 rounded-full"
         />
         <Text className="text-xl font-rubik-medium text-black-300">
@@ -94,51 +101,140 @@ function formatTimestamp_2(timestamp: string): string {
 }
 
 const FullChat = () => {
-  const { chatOverviewManager, setChatOverviewManager } = useGlobalContext();
+  const { chatOverviewManager, setChatOverviewManager, user } =
+    useGlobalContext();
 
   const params = useLocalSearchParams<{ metadata: string }>();
   const [agentMetadata, setAgentMetadata] = useState<Metadata | null>();
-  const [isFirstInstance, setisFirstInstance] = useState(false);
-  const [chat, setChat] = useState<Array<ChatReturnType> | null>([]);
+  const [isFirstInstance, setIsFirstInstance] = useState(false);
+  const [chat, setChat] = useState<Array<Message> | null>([]);
+  const [isAgentOnline, setIsAgentOnline] = useState<boolean>(false);
+  const [changeStatusSyncQueue, setChangeStatusSyncQueue] = useState<Message[]>(
+    []
+  );
 
   const {
     data: completeChat,
     loading: chatLoading,
     refetch: fetchChat,
   } = useSupabase({
-    fn: getCompleteChat,
+    fn: getMessagesByConversation,
     params: {
-      conversation_id: agentMetadata?.conversation_id,
-      agent_id: agentMetadata?.agent_id,
-    },
-    skip: true,
-  });
-  const {
-    data,
-    loading,
-    refetch: changeStatus,
-  } = useSupabase({
-    fn: changetMessageStatus,
-    params: {
-      conversation_id: agentMetadata?.conversation_id,
+      conversationId: agentMetadata?.conversation_id,
+      range: [0, 30],
     },
     skip: true,
   });
 
   useEffect(() => {
-    const metadata = params.metadata
+    updateMessageStatusFromQueue();
+  }, [changeStatusSyncQueue, chat]);
+
+  const updateMessageStatusFromQueue = async () => {
+    try {
+      if (changeStatusSyncQueue) {
+        const dummyQueue = [...changeStatusSyncQueue];
+        for (const message of dummyQueue) {
+          if (message.sender_id === agentMetadata?.agent_id) {
+            const result = await changeMessageStatus(
+              message.conversation_id,
+              "read"
+            );
+            if (result) {
+            }
+          } else {
+            setChat(prev => (prev ?? [])?.map(item => item.id === message.id? {
+              ...item,
+              status: message.status
+            }: item))
+            updateMessage({status: message.status}, message.id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    const metadata: Metadata = params.metadata
       ? JSON.parse(decodeURIComponent(params.metadata as string))
       : null;
     setAgentMetadata(metadata);
     fetchChat({
-      conversation_id: metadata?.conversation_id,
-      agent_id: metadata?.agent_id,
+      conversationId: metadata?.conversation_id,
+      range: [0, 30],
     });
+    updateConversation(metadata.conversation_id, { unread_count: 0 });
+    const channel = Supabase.channel(
+      `conversation: ${metadata.conversation_id}`,
+      {
+        config: {
+          presence: { key: user?.id },
+        },
+      }
+    );
+    channel
+      .on(
+        "presence",
+        {
+          event: "sync",
+        },
+        () => {
+          const state = channel.presenceState();
+          const onlineUsers = Object.values(state).flat();
+          console.log(onlineUsers);
+          // setIsAgentOnline(onlineUsers[0].user_id); // your custom state setter
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${metadata.agent_id}`,
+        },
+        (payload) => {
+          if (isFirstInstance) setIsFirstInstance(false);
+          const newData = payload.new as Message;
+          switch (payload.eventType) {
+            case "INSERT":
+              setChat((prev) => [newData, ...(prev ?? [])]);
+              setChangeStatusSyncQueue((prev) => [...prev, newData]);
+              break;
+            case "UPDATE":
+              if (chat) {
+                setChat((prev) =>
+                  (prev ?? [])?.map((item) =>
+                    item.id === newData.id
+                      ? {
+                          ...item,
+                          status: newData.status,
+                        }
+                      : item
+                  )
+                );
+              }
+              setChangeStatusSyncQueue((prev) => [...prev, newData]);
+            default:
+              break;
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          channel.track({
+            user_id: user?.id,
+            last_seen: new Date().toISOString(),
+          });
+        }
+      });
   }, []);
 
   useEffect(() => {
     if (completeChat) {
-      setChat(completeChat);
+      setChat((prev) => [...(prev ?? []), ...completeChat]);
     }
   }, [completeChat]);
 
@@ -146,11 +242,9 @@ const FullChat = () => {
     if (
       chatOverviewManager.filter(
         (item) => item.conversation_id === agentMetadata?.conversation_id
-      )[0]?.unread_count > 0
+      )[0]?.unread_count ??
+      0 > 0
     ) {
-      changeStatus({
-        conversation_id: agentMetadata?.conversation_id,
-      });
       setChatOverviewManager((prev) =>
         prev.map((item) =>
           item.conversation_id === agentMetadata?.conversation_id
@@ -165,7 +259,7 @@ const FullChat = () => {
   }, [chatOverviewManager, agentMetadata]);
 
   const renderItem = useCallback(
-    ({ item }: { item: ChatReturnType }) =>
+    ({ item }: { item: Message }) =>
       item.sender_id === agentMetadata?.agent_id ? (
         <View className="w-full flex flex-col mt-7">
           <View className="w-[80%] flex flex-row rounded-[2rem] gap-1 bg-primary-100 px-6 py-5 items-end">

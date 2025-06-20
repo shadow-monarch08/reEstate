@@ -12,7 +12,7 @@ import {
 import { useGlobalContext } from "@/lib/global-provider";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
-import { getWishlistProperty, propertyReturnType } from "@/lib/supabase";
+import { getWishlistProperty, PropertyReturnType } from "@/lib/supabase";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,7 +21,7 @@ import { FilterModal } from "@/components/FilterModal";
 
 const Wishlist = () => {
   const [range, setRange] = useState<[number, number]>([0, 5]);
-  const [data, setData] = useState<Array<propertyReturnType> | null>([]);
+  const [data, setData] = useState<Array<PropertyReturnType> | null>([]);
   const [isFirstInstance, setIsFirstInstance] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
   const { user, setWishlistManager, wishlistManager } = useGlobalContext();
@@ -136,7 +136,7 @@ const Wishlist = () => {
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
 
   const renderItem = useCallback(
-    ({ item }: { item: propertyReturnType }) =>
+    ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
         <Card
           item={item}

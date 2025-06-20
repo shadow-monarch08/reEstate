@@ -79,7 +79,7 @@ interface User {
   full_name: string | undefined;
 }
 
-export interface propertyReturnType {
+export interface PropertyReturnType {
   address: string;
   id: string;
   image: string;
@@ -88,13 +88,23 @@ export interface propertyReturnType {
   rating: number;
 }
 
+interface PropertyRef {
+  address?: string;
+  id: string;
+  image?: string;
+  name?: string;
+  price?: number;
+  rating?: number;
+  isLoading?: boolean;
+}
+
 export interface Sort {
   name: "ascending" | "descending";
   date: "latest" | "oldest";
   rating: "ascending" | "descending";
 }
 
-interface propertyParameter {
+interface PropertyParameter {
   filter?: string;
   query?: string;
   range: Array<number>;
@@ -170,12 +180,27 @@ export interface ReviewReturn {
   review: string;
 }
 
-interface UnreadMessage {
+export interface Message {
   id: string;
-  message: string;
-  created_at: Date;
-  file: string;
-  property_ref: string;
+  conversation_id: string;
+  receiver_id: string;
+  sender_id: string;
+  message: string | null;
+  file: File | null;
+  property_ref: string | PropertyRef | null;
+  created_at: string;
+  status: string;
+  identifier_user?: string;
+  identifier_agent?: string;
+}
+
+export interface Conversation {
+  conversation_id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_avatar: string;
+  avatar_last_update: string;
+  unread_count: number;
 }
 
 export interface File {
@@ -188,13 +213,14 @@ export interface ChatOverviewReturnType {
   agent_avatar: string;
   agent_id: string;
   agent_name: string;
+  avatar_last_update: string;
   conversation_id: string;
-  last_message?: string;
-  last_message_time?: string | null; // ISO timestamp (can use Date if parsed)
+  last_message?: string | null;
+  last_message_time: string; // ISO timestamp (can use Date if parsed)
   last_file?: File | null;
-  last_property_ref?: propertyReturnType | null;
+  last_property_ref?: string | PropertyRef | null;
   unread_count?: number;
-  unread_messages?: Array<UnreadMessage>;
+  unread_messages?: Array<Message>;
 }
 
 export interface ChatReturnType {
@@ -273,7 +299,7 @@ export const getFeaturedProperties = async ({
   filter: string;
   sort?: string;
   range: Array<number | number>;
-}): Promise<Array<propertyReturnType> | [] | null> => {
+}): Promise<Array<PropertyReturnType> | [] | null> => {
   try {
     if (filter && filter !== "All") {
       if (sort && sort !== "null") {
@@ -338,7 +364,7 @@ export const getLatestProperties = async ({
   filter,
   range,
   sort,
-}: propertyParameter): Promise<Array<propertyReturnType> | [] | null> => {
+}: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
   try {
     if (filter && filter !== "All") {
       if (sort && sort !== "null") {
@@ -405,7 +431,7 @@ export const getSearchedProperties = async ({
   filter,
   range,
   propFilter,
-}: propertyParameter): Promise<Array<propertyReturnType> | [] | null> => {
+}: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
   try {
     if (propFilter && propFilter !== "null") {
       const filters: Filters = JSON.parse(propFilter);
@@ -541,6 +567,25 @@ export const getPropertyDetail = async ({
   }
 };
 
+export const getPropertyById = async <T>(
+  propertyIdArr: Array<T>
+): Promise<Array<PropertyReturnType> | null> => {
+  try {
+    const { data, error } = await Supabase.from("properties")
+      .select("id, name, address, price, rating, image")
+      .in("id", propertyIdArr);
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
 export const getPropertyFromId = async ({
   propertyIdArr,
 }: {
@@ -551,14 +596,14 @@ export const getPropertyFromId = async ({
       .select("id, name, image, address, price, rating")
       .in("id", propertyIdArr);
 
-      if(error){
-        console.error(error)
-        return null
-      }
-      return data
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    return data;
   } catch (error) {
-    console.error(error)
-    return null
+    console.error(error);
+    return null;
   }
 };
 
@@ -700,9 +745,9 @@ export const getWishlistProperty = async ({
   range,
   propFilter,
   userId,
-}: propertyParameter & {
+}: PropertyParameter & {
   userId: string | undefined;
-}): Promise<Array<propertyReturnType> | null> => {
+}): Promise<Array<PropertyReturnType> | null> => {
   try {
     if (propFilter && propFilter !== "null") {
       const filters: Filters = JSON.parse(propFilter);
@@ -918,19 +963,28 @@ export const getCompleteChat = async ({
   }
 };
 
-export const changetMessageStatus = async ({
-  conversation_id,
-}: {
-  conversation_id: string | undefined;
-}) => {
+export const changeMessageStatus = async (
+  conversation_id: string | undefined,
+  status: "received" | "read"
+) => {
   try {
-    const { data, error } = await Supabase.from("messages")
-      .update({
-        status: "read",
-      })
-      .eq("conversation_id", conversation_id)
-      .or("status.eq.received, status.eq.sent");
-    return error;
+    if (status === "received") {
+      const { data, error } = await Supabase.from("messages")
+        .update({
+          status: "received",
+        })
+        .eq("conversation_id", conversation_id)
+        .eq("status", "sent");
+      return error;
+    } else {
+      const { data, error } = await Supabase.from("messages")
+        .update({
+          status: "received",
+        })
+        .eq("conversation_id", conversation_id)
+        .or("status.eq.received, status.eq.sent");
+      return error;
+    }
   } catch (error) {
     console.error(error);
     return error;
@@ -960,6 +1014,24 @@ export const createConversation = async ({
       return null;
     }
     return conversationId;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const getAgentData = async (agentId: string) => {
+  try {
+    const { data, error } = await Supabase.from("agents")
+      .select("avatar")
+      .eq("id", agentId);
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+
+    return data[0];
   } catch (error) {
     console.error(error);
     return null;

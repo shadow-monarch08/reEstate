@@ -48,12 +48,23 @@ const ChatInput = ({
           </TouchableOpacity>
         </View>
       </View>
+      {
+        value?.trim()?
+      <TouchableOpacity
+        activeOpacity={0.6}
+        className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+      >
+        <Image source={icons.send} className="size-7" tintColor={"white"} />
+      </TouchableOpacity>
+      :
       <TouchableOpacity
         activeOpacity={0.6}
         className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
       >
         <Image source={icons.mic} className="size-7" tintColor={"white"} />
       </TouchableOpacity>
+
+      }
     </View>
   );
 };

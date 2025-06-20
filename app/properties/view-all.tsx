@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSupabase } from "@/lib/useSupabase";
-import { getLatestProperties, propertyReturnType } from "@/lib/supabase";
+import { getLatestProperties, PropertyReturnType } from "@/lib/supabase";
 import icons from "@/constants/icons";
 import { useGlobalContext } from "@/lib/global-provider";
 import { SortModal } from "@/components/FilterModal";
@@ -25,7 +25,7 @@ const ViewAll = () => {
     sort: string;
   }>();
   const [range, setRange] = useState<[number, number]>([0, 5]);
-  const [data, setData] = useState<Array<propertyReturnType> | null>([]);
+  const [data, setData] = useState<Array<PropertyReturnType> | null>([]);
   const [isFirstInstance, setIsFirstInstance] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
   const [cardType, setCardType] = useState<"grid" | "list">("grid");
@@ -132,7 +132,7 @@ const ViewAll = () => {
   }, []);
 
   const renderItem = useCallback(
-    ({ item }: { item: propertyReturnType }) =>
+    ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
         <Card
           item={item}

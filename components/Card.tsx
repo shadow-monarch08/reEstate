@@ -20,7 +20,7 @@ interface propertyItem {
 }
 
 interface Props {
-  onPress?: (params: string) => void;
+  onPress?: () => void;
   item: propertyItem;
   isWishlisted?: boolean;
   handleWishlist: (propertyId: string, operation: "insert" | "delete") => void;
@@ -464,7 +464,7 @@ export const ChatCard = ({
     >
       <View className="flex flex-row gap-4 w-2/3">
         <Image
-          source={{ uri: item.agent_avatar }}
+          src={item.agent_avatar}
           className="size-16 rounded-full"
         />
         <View className="flex flex-col justify-between py-1">
@@ -477,7 +477,7 @@ export const ChatCard = ({
         </View>
       </View>
       <View className="flex flex-col justify-between items-end absolute right-0 h-full">
-        {item.unread_count > 0 ? (
+        {item.unread_count ?? 0 > 0 ? (
           <View className="rounded-full bg-primary-300 size-7 flex items-center justify-center">
             <Text className="font-rubik-medium text-white text-xs mt-1">
               {item.unread_count}

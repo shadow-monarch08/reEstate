@@ -13,7 +13,7 @@ import icons from "@/constants/icons";
 import { router, useLocalSearchParams } from "expo-router";
 import NoResult from "@/components/NoResult";
 import { useSupabase } from "@/lib/useSupabase";
-import { getSearchedProperties, propertyReturnType } from "@/lib/supabase";
+import { getSearchedProperties, PropertyReturnType } from "@/lib/supabase";
 import { useGlobalContext } from "@/lib/global-provider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -24,7 +24,7 @@ const Explore = () => {
   const [isFirstInstance, setIsFirstInstance] = useState(true);
   const [isEnd, setIsEnd] = useState(false);
   const [properties, setProperties] = useState<
-    Array<propertyReturnType> | [] | null
+    Array<PropertyReturnType> | [] | null
   >([]);
   const [cardType, setCardType] = useState<"grid" | "list">("grid");
 
@@ -130,7 +130,7 @@ const Explore = () => {
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: propertyReturnType }) =>
+    ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
         <Card
           item={item}
@@ -249,9 +249,7 @@ const Explore = () => {
                   <View className="flex flex-row gap-4">
                     <TouchableOpacity onPress={() => setCardType("grid")}>
                       <Image
-                        source={icons.all
-                          
-                        }
+                        source={icons.all}
                         className="size-6"
                         tintColor={cardType === "grid" ? "#0061FF" : "#8C8E98"}
                       />

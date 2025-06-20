@@ -1,24 +1,5 @@
-import { ChatOverviewReturnType, File, propertyReturnType } from "../supabase";
+import { ChatOverviewReturnType, Conversation, Message } from "../supabase";
 import { getRealm } from "./realm";
-
-interface Message {
-  conversation_id: string;
-  receiver_id: string;
-  sender_id: string;
-  message: string;
-  file: File;
-  property_ref: propertyReturnType;
-  created_at: string;
-}
-
-interface Conversation {
-  conversation_id: string;
-  agent_id: string;
-  agent_name: string;
-  agent_avatar: string;
-  avatar_last_update: string;
-  unread_count: number;
-}
 
 export const getAllChatOverviews = async ({
   range,
@@ -28,10 +9,12 @@ export const getAllChatOverviews = async ({
   const realm = await getRealm();
 
   // Get paginated conversations
-  const allConversations = realm.objects<Conversation>("Conversation");
+  const allConversations = realm
+    .objects<Conversation>("Conversation")
+    .sorted("last_message", true);
   const paginatedConversations = allConversations.slice(range[0], range[1]);
 
-  const overviews: ChatOverviewReturnType[] = [];
+  const overviews: Array<ChatOverviewReturnType> = [];
 
   for (const conv of paginatedConversations) {
     const messages = realm
@@ -53,8 +36,41 @@ export const getAllChatOverviews = async ({
       unread_count: conv?.unread_count ?? 0,
     });
   }
+  return Promise.resolve(overviews);
+};
 
-  return overviews;
+export const getChatOverviews = async (
+  conversationId: string
+): Promise<Array<ChatOverviewReturnType>> => {
+  const realm = await getRealm();
+
+  // Get paginated conversations
+  const Conversations = realm
+    .objects<Conversation>("Conversation")
+    .filtered("conversation_id == $0", conversationId);
+
+  const overviews: Array<ChatOverviewReturnType> = [];
+
+  const messages = realm
+    .objects<Message>("Message")
+    .filtered("conversation_id == $0", conversationId);
+
+  const latestMessage = messages.sorted("created_at", true)[0];
+
+  overviews.push({
+    conversation_id: Conversations[0].conversation_id,
+    agent_id: Conversations[0].agent_id,
+    agent_name: Conversations[0].agent_name,
+    agent_avatar: Conversations[0].agent_avatar,
+    avatar_last_update: Conversations[0].avatar_last_update,
+    last_message: latestMessage?.message ?? null,
+    last_file: latestMessage?.file ?? null,
+    last_property_ref: latestMessage?.property_ref ?? null,
+    last_message_time: latestMessage?.created_at ?? null,
+    unread_count: Conversations[0]?.unread_count ?? 0,
+  });
+
+  return Promise.resolve(overviews);
 };
 
 export const insertMessage = async (msg: Array<Message>) => {
@@ -67,6 +83,20 @@ export const insertMessage = async (msg: Array<Message>) => {
     });
   } catch (error) {
     console.error("Failed to insert message:", error);
+  }
+};
+
+export const updateMessage = async (msg: Partial<any>, messageId: string) => {
+  try {
+    const realm = await getRealm();
+    realm.write(() => {
+      const message = realm.objects("Message").filtered("id = $0", messageId);
+      if (message) {
+        Object.assign(message, msg);
+      }
+    });
+  } catch (error) {
+    console.error(error);
   }
 };
 
@@ -101,14 +131,17 @@ export const updateConversation = async (
   }
 };
 
-export const getMessagesByConversation = async (
-  conversationId: string,
-  range: Array<number | number>
-) => {
+export const getMessagesByConversation = async ({
+  conversationId,
+  range,
+}: {
+  conversationId: string | undefined;
+  range: Array<number | number>;
+}): Promise<Array<Message>> => {
   try {
     const realm = await getRealm();
     const pagedMessage = realm
-      .objects("Message")
+      .objects<Message>("Message")
       .filtered("conversation_id == $0", conversationId)
       .sorted("created_at", true)
       .slice(range[0], range[1]);
