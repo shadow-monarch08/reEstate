@@ -1,16 +1,13 @@
 import { View, Text, FlatList, Image, TouchableOpacity } from "react-native";
-import React, { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
-import { useSupabase } from "@/lib/useSupabase";
-import { getChatOverview } from "@/lib/supabase";
 import { useGlobalContext } from "@/lib/global-provider";
 import { ChatCard } from "@/components/Card";
 import { router } from "expo-router";
 
 const Chat = () => {
-  const { user, chatOverviewManager } = useGlobalContext();
+  const { chatOverviewManager } = useGlobalContext();
 
   const handelCardPress = (item: object) => {
     const json = encodeURIComponent(JSON.stringify(item)); // escape for URL
@@ -20,7 +17,7 @@ const Chat = () => {
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
       <FlatList
-        data={chatOverviewManager}
+        data={Array.from(chatOverviewManager?.values())}
         keyExtractor={(item) => item.agent_id}
         className="px-5"
         renderItem={({ item }) => (

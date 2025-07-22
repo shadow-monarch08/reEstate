@@ -8,7 +8,7 @@ import {
   ImageSourcePropType,
   ActivityIndicator,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { getPropertyDetail } from "@/lib/supabase";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,6 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { getConversationByAgent } from "@/lib/database/chatServices";
 // import MyMap from "@/components/MyMap";
 
 const width = Dimensions.get("window").width;
@@ -172,6 +173,7 @@ const Property = () => {
   const [gallaryImages, setgallaryImages] = useState<Array<string>>([]);
   const { bottomSheetModalRef, setWishlistManager, wishlistManager } =
     useGlobalContext();
+  const conversationIdRef = useRef<string | null>(null);
 
   const handleWishlist = (operation: "insert" | "delete") => {
     if (operation === "insert") {
@@ -198,6 +200,40 @@ const Property = () => {
     },
   });
 
+  const checkIfNewConversation = async () => {
+    if (propertyDetail) {
+      const conversation = await getConversationByAgent(propertyDetail.agent);
+      if (conversation.length !== 0) {
+        conversationIdRef.current = conversation[0].conversation_id;
+      }
+    }
+  };
+
+  const handleOpenChat = useCallback(() => {
+    let chatMetadata;
+    if (propertyDetail) {
+      if (conversationIdRef.current) {
+        chatMetadata = {
+          conversation_id: conversationIdRef.current,
+          avatar_url: propertyDetail?.agent_avatar.url,
+          agent_name: propertyDetail?.agent_name,
+          agent_id: propertyDetail?.agent,
+          isFirstMessage: false,
+        };
+      } else {
+        chatMetadata = {
+          conversation_id: "",
+          avatar_url: propertyDetail?.agent_avatar.url,
+          agent_name: propertyDetail?.agent_name,
+          agent_id: propertyDetail?.agent,
+          isFirstMessage: true,
+        };
+      }
+    }
+    const json = encodeURIComponent(JSON.stringify(chatMetadata)); // escape for URL
+    router.push(`/chat/${json}`);
+  }, [propertyDetail]);
+
   useEffect(() => {
     if (propertyDetail) {
       setgallaryImages([
@@ -205,6 +241,7 @@ const Property = () => {
         ...propertyDetail?.gallery_images,
       ]);
     }
+    checkIfNewConversation();
   }, [loading]);
 
   const handelPress = (id: string | undefined) => {
@@ -322,7 +359,7 @@ const Property = () => {
                     <View className="mt-4 flex flex-row gap-4">
                       <Image
                         className="rounded-full size-20"
-                        source={{ uri: propertyDetail?.agent_avatar }}
+                        source={{ uri: propertyDetail?.agent_avatar.url }}
                         resizeMode="cover"
                       />
                       <View className="flex flex-row justify-between flex-1">
@@ -338,7 +375,7 @@ const Property = () => {
                           </Text>
                         </View>
                         <View className="flex flex-row gap-5 items-center justify-end flex-1">
-                          <TouchableOpacity>
+                          <TouchableOpacity onPress={handleOpenChat}>
                             <Image source={icons.chat} className="size-8" />
                           </TouchableOpacity>
                           <TouchableOpacity>

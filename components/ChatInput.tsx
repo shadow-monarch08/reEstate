@@ -14,12 +14,12 @@ const ChatInput = ({
   handleSubmit?: () => void;
 }) => {
   return (
-    <View className="w-full px-5 mb-6 flex flex-row gap-3 items-center">
-      <View className="flex flex-1 flex-row gap-2 bg-primary-100 px-4 py-5 rounded-2xl">
+    <View className="w-full px-3 mb-6 flex flex-row gap-3 items-center">
+      <View className="flex flex-1 flex-row gap-2 bg-primary-100 px-4 py-4 rounded-2xl">
         <View className="flex flex-1 flex-row gap-3 items-center">
           <TouchableOpacity>
             <Image
-              source={icons.smiley}
+              source={icons.keyboard}
               className="size-6"
               tintColor="#8C8E98"
               resizeMode="contain"
@@ -36,35 +36,38 @@ const ChatInput = ({
           />
         </View>
         <View className="flex flex-row items-center gap-3">
-          <TouchableOpacity onPress={handleSubmit}>
-            <Image source={icons.clip} className="size-6" tintColor="#8C8E98" />
+          <TouchableOpacity>
+            <Image
+              source={icons.clip}
+              className="size-[1.5rem]"
+              tintColor="#8C8E98"
+            />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleSubmit}>
+          <TouchableOpacity>
             <Image
               source={icons.camera}
-              className="size-6"
+              className="size-[1.5rem]"
               tintColor="#8C8E98"
             />
           </TouchableOpacity>
         </View>
       </View>
-      {
-        value?.trim()?
-      <TouchableOpacity
-        activeOpacity={0.6}
-        className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
-      >
-        <Image source={icons.send} className="size-7" tintColor={"white"} />
-      </TouchableOpacity>
-      :
-      <TouchableOpacity
-        activeOpacity={0.6}
-        className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
-      >
-        <Image source={icons.mic} className="size-7" tintColor={"white"} />
-      </TouchableOpacity>
-
-      }
+      {value?.trim().length !== 0 ? (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+          onPress={handleSubmit}
+        >
+          <Image source={icons.send} className="size-6" tintColor={"white"} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+        >
+          <Image source={icons.mic} className="size-6" tintColor={"white"} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 };

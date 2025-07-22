@@ -1,106 +1,43 @@
-import RNFS from "react-native-fs";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import * as FileSystem from "expo-file-system";
 
-const ROOT_DIR = `${RNFS.DocumentDirectoryPath}/ReEstate`;
+const PROFILE_IMG_DIR = FileSystem.documentDirectory + "profile_images/";
 
-const PROFILE_IMAGE_DIR = `${ROOT_DIR}/profile_images`;
-
-export const saveProfileImage = async (
-  url: string,
-  agentId: string
-): Promise<string> => {
+export const cacheProfileImage = async (imageUri: string, agentId: string) => {
   try {
-    const filePath = `${PROFILE_IMAGE_DIR}/${agentId}.jpg`;
+    // Compress the image
+    const downloadRes = await FileSystem.downloadAsync(
+      imageUri,
+      FileSystem.cacheDirectory + `temp-${agentId}.jpg`
+    );
 
-    // Make sure directory exists
-    const exists = await RNFS.exists(PROFILE_IMAGE_DIR);
-    if (!exists) await RNFS.mkdir(PROFILE_IMAGE_DIR);
+    const context = ImageManipulator.manipulate(downloadRes.uri);
 
-    // Download the image
-    const result = await RNFS.downloadFile({
-      fromUrl: url,
-      toFile: filePath,
-    }).promise;
+    context.resize({
+      width: 192,
+      height: 192,
+    });
+    const compressedImage = await context.renderAsync();
+    const result = await compressedImage.saveAsync({
+      format: SaveFormat.JPEG,
+    });
 
-    if (result.statusCode === 200) {
-      return filePath;
-    } else {
-      throw new Error("Image download failed");
-    }
-  } catch (error) {
-    console.error("Failed to save image:", error);
-    throw error;
-  }
-};
+    // Ensure directory exists
+    await FileSystem.makeDirectoryAsync(PROFILE_IMG_DIR, {
+      intermediates: true,
+    });
 
-const PROPERTY_IMAGE_DIR = `${ROOT_DIR}/property_images`;
+    const localPath = PROFILE_IMG_DIR + `${agentId}.jpg`;
 
-export const savePropertyImage = async<T>(
-  url: string,
-  property_id: T
-): Promise<string> => {
-  try {
-    const filePath = `${PROPERTY_IMAGE_DIR}/${property_id}.jpg`;
+    // Save compressed image to local storage
+    await FileSystem.copyAsync({
+      from: result.uri,
+      to: localPath,
+    });
 
-    // Make sure directory exists
-    const dirExists = await RNFS.exists(PROPERTY_IMAGE_DIR);
-    if (!dirExists) await RNFS.mkdir(PROPERTY_IMAGE_DIR);
-
-    // Check if the image already exists
-    const imageExists = await RNFS.exists(filePath);
-    if (imageExists) {
-      return filePath; // Already downloaded
-    }
-
-    // Download the image
-    const result = await RNFS.downloadFile({
-      fromUrl: url,
-      toFile: filePath,
-    }).promise;
-
-    if (result.statusCode === 200) {
-      return filePath;
-    } else {
-      throw new Error("Image download failed with status " + result.statusCode);
-    }
-  } catch (error) {
-    console.error("Failed to save image:", error);
-    throw error;
-  }
-};
-
-const FILE_DIR = `${ROOT_DIR}/file`;
-
-
-export const saveFile = async (
-  url: string,
-  message_id: string | undefined
-): Promise<string> => {
-  try {
-    const filePath = `${FILE_DIR}/${message_id}.jpg`;
-
-    // Make sure directory exists
-    const dirExists = await RNFS.exists(FILE_DIR);
-    if (!dirExists) await RNFS.mkdir(FILE_DIR);
-
-    // Check if the image already exists
-    const imageExists = await RNFS.exists(filePath);
-    if (imageExists) {
-      return filePath; // Already downloaded
-    }
-
-    // Download the image
-    const result = await RNFS.downloadFile({
-      fromUrl: url,
-      toFile: filePath,
-    }).promise;
-
-    if (result.statusCode === 200) {
-      return filePath;
-    } else {
-      throw new Error("Image download failed with status " + result.statusCode);
-    }
-  } catch (error) {
-    console.error("Failed to save image:", error);
-    throw error;
+    return localPath;
+  } catch (err) {
+    console.error("Image caching error:", err);
+    return null;
   }
 };

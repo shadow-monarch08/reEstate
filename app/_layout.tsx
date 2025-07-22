@@ -3,8 +3,12 @@ import "react-native-get-random-values";
 import { SplashScreen, Stack } from "expo-router";
 import "./global.css";
 import { useFonts } from "expo-font";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import GlobalProvider from "@/lib/global-provider";
+import { initializeDatabase } from "@/lib/database/db";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { FilterModal } from "@/components/FilterModal";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -15,18 +19,30 @@ export default function RootLayout() {
     "Rubik-Regular": require("../assets/fonts/Rubik-Regular.ttf"),
     "Rubik-SemiBold": require("../assets/fonts/Rubik-SemiBold.ttf"),
   });
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded && isReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, isReady]);
+  useEffect(() => {
+    (async () => {
+      await initializeDatabase();
+      setIsReady(true);
+    })();
+  }, []);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded || !isReady) return null;
 
   return (
-    <GlobalProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </GlobalProvider>
+    <GestureHandlerRootView>
+      <BottomSheetModalProvider>
+        <GlobalProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+          <FilterModal />
+        </GlobalProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }

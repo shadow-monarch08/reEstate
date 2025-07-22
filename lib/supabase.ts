@@ -130,7 +130,10 @@ export interface propertyOverviewReturnType {
   agent: string;
   agent_name: string;
   agent_email: string;
-  agent_avatar: string;
+  agent_avatar: {
+    url: string;
+    lastUpdate: string;
+  };
   review_count: number;
   top_reviews: Review[];
 }
@@ -186,7 +189,7 @@ export interface Message {
   receiver_id: string;
   sender_id: string;
   message: string | null;
-  file: File | null;
+  file: File | string | null;
   property_ref: string | PropertyRef | null;
   created_at: string;
   status: string;
@@ -217,10 +220,18 @@ export interface ChatOverviewReturnType {
   conversation_id: string;
   last_message?: string | null;
   last_message_time: string; // ISO timestamp (can use Date if parsed)
-  last_file?: File | null;
+  last_message_status: string;
+  last_file?: File | string | null;
+  last_message_sender_id: string;
   last_property_ref?: string | PropertyRef | null;
-  unread_count?: number;
-  unread_messages?: Array<Message>;
+  unread_count: number;
+}
+
+export interface ConversationUnreceivedMessagesReturnType {
+  conversation_id: string;
+  sender_id: string;
+  unread_count: number;
+  all_messages: Array<Message>;
 }
 
 export interface ChatReturnType {
@@ -897,31 +908,24 @@ export const getConverationIds = async ({
 //   last_message_time: "2025-06-09T07:03:03.680662+00:00",
 //   unread_count: 1,
 // };
-export const getChatOverview = async ({
+export const getConversationUnreceivedMessages = async ({
   user_id,
-  range,
-  conversation_arr,
+  limit,
 }: {
   user_id: string | undefined;
-  range: Array<number | number>;
-  conversation_arr: {
-    conversation_id: string;
-    last_message_time: Date;
-  }[];
-}): Promise<Array<ChatOverviewReturnType> | null> => {
+  limit: number;
+}): Promise<Array<ConversationUnreceivedMessagesReturnType> | null> => {
   try {
     if (!user_id) {
       return null;
     }
     const { data, error } = await Supabase.rpc(
-      "get_chat_overview_with_unread_optimized",
+      "get_chat_overview_queued_messages_paginated",
       {
-        p_user_id: user_id,
-        p_conversations: conversation_arr,
+        p_receiver_id: user_id,
+        p_limit: limit,
       }
-    )
-      .select("*")
-      .range(range[0], range[1]);
+    ).select("*");
     if (error) {
       console.error(error);
       return null;
@@ -943,9 +947,7 @@ export const getCompleteChat = async ({
   try {
     if (conversation_id) {
       const { data, error } = await Supabase.from("messages")
-        .select(
-          "id, message, created_at, sender_id, status, property_ref, file"
-        )
+        .select("*")
         .eq("conversation_id", conversation_id)
         .or(`sender_id.eq.${agent_id}, receiver_id.eq.${agent_id}`)
         .order("created_at", { ascending: true });
@@ -963,28 +965,26 @@ export const getCompleteChat = async ({
   }
 };
 
-export const changeMessageStatus = async (
-  conversation_id: string | undefined,
-  status: "received" | "read"
-) => {
+export const insertInMessages = async ({ msg }: { msg: Message }) => {
   try {
-    if (status === "received") {
-      const { data, error } = await Supabase.from("messages")
-        .update({
-          status: "received",
-        })
-        .eq("conversation_id", conversation_id)
-        .eq("status", "sent");
-      return error;
-    } else {
-      const { data, error } = await Supabase.from("messages")
-        .update({
-          status: "received",
-        })
-        .eq("conversation_id", conversation_id)
-        .or("status.eq.received, status.eq.sent");
-      return error;
-    }
+    const { data, error } = await Supabase.from("messages").insert([msg]);
+    return error;
+  } catch (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const deleteFromMessages = async ({
+  conversation_id,
+}: {
+  conversation_id: string;
+}) => {
+  try {
+    const { data, error } = await Supabase.from("messages")
+      .delete()
+      .eq("conversation_id", conversation_id);
+    return error;
   } catch (error) {
     console.error(error);
     return error;
@@ -1003,8 +1003,8 @@ export const createConversation = async ({
     const { data: conversationId, error } = await Supabase.from("conversations")
       .insert([
         {
-          agent_id: data.agent_id,
-          user_id: data.user_id,
+          agent: data.agent_id,
+          user: data.user_id,
         },
       ])
       .select("id")
@@ -1020,7 +1020,9 @@ export const createConversation = async ({
   }
 };
 
-export const getAgentData = async (agentId: string) => {
+export const getAgentData = async (
+  agentId: string
+): Promise<{ avatar: { url: string; lastUpdate: string } } | null> => {
   try {
     const { data, error } = await Supabase.from("agents")
       .select("avatar")
@@ -1031,7 +1033,73 @@ export const getAgentData = async (agentId: string) => {
       return null;
     }
 
-    return data[0];
+    return data[0] as { avatar: { url: string; lastUpdate: string } };
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const updateConversationSupabase = async ({
+  comparisionClaus,
+  columnClaus,
+}: {
+  comparisionClaus: Record<string, string>;
+  columnClaus: Record<string, string | null>;
+}) => {
+  try {
+    const { data, error } = await Supabase.from("conversations")
+      .update(columnClaus)
+      .eq(Object.keys(comparisionClaus)[0], Object.values(comparisionClaus)[0]);
+    return error;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const getUnreceivedMessages = async ({
+  conversationId,
+  userId,
+}: {
+  conversationId: string;
+  userId: string | undefined;
+}): Promise<Array<ConversationUnreceivedMessagesReturnType> | null> => {
+  try {
+    const { data, error } = await Supabase.rpc(
+      "get_chat_overview_queued_messages_by_conversation",
+      {
+        p_conversation_id: conversationId,
+        p_receiver_id: userId,
+      }
+    );
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const getFromConversation = async <
+  T extends string,
+  S extends string | number
+>({
+  comparisionClaus,
+  column,
+}: {
+  comparisionClaus: Record<string, string>;
+  column: string[];
+}): Promise<Array<Record<T, S>> | null> => {
+  try {
+    const { data, error } = await Supabase.from("conversations")
+      .select(column.join(", "))
+      .eq(Object.keys(comparisionClaus)[0], Object.values(comparisionClaus)[0]);
+    return data as Record<T, S>[];
   } catch (error) {
     console.error(error);
     return null;

@@ -1,43 +1,40 @@
 import React, {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
 } from "react";
+
 import { useSupabase } from "./useSupabase";
 import {
-  changeMessageStatus,
   ChatOverviewReturnType,
-  ChatReturnType,
+  deleteFromMessages,
   FilterDetailReturnType,
   getAgentData,
-  getChatOverview,
-  getConverationIds,
+  getConversationUnreceivedMessages,
   getCurrentUser,
   getFilterDetail,
-  getPropertyById,
+  getFromConversation,
   getWishlistedPropertyId,
   Message,
-  PropertyReturnType,
   Supabase,
+  updateConversationSupabase,
   updateWishlist,
 } from "./supabase";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import {
-  saveFile,
-  saveProfileImage,
-  savePropertyImage,
-} from "./database/saveFiles";
-import {
   getAllChatOverviews,
   getChatOverviews,
-  insertMessage,
+  insertMessages,
   updateConversation,
   updateMessage,
 } from "./database/chatServices";
+import { cacheProfileImage } from "./database/saveFiles";
+import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 
 interface User {
   id: string | undefined;
@@ -68,11 +65,10 @@ interface GlobalContextType {
   filterDetail: FilterDetailReturnType | null;
   wishlistManager: wishlistManagerType;
   setWishlistManager: React.Dispatch<React.SetStateAction<wishlistManagerType>>;
-  chatOverviewManager: Array<ChatOverviewReturnType>;
+  chatOverviewManager: Map<string, ChatOverviewReturnType>;
   setChatOverviewManager: React.Dispatch<
-    React.SetStateAction<Array<ChatOverviewReturnType>>
+    React.SetStateAction<Map<string, ChatOverviewReturnType>>
   >;
-  setActiveConversationId: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
@@ -84,24 +80,16 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     changeId: "",
   });
   const [chatOverviewManager, setChatOverviewManager] = useState<
-    Array<ChatOverviewReturnType>
-  >([]);
-  const [conversationSyncTime, setConversationSyncTime] = useState<
-    Array<{ conversation_id: string; last_message_time: Date }>
-  >([]);
-  const [activeConversationId, setActiveConversationId] = useState<string>("");
-  const [newMessageSyncQueue, setNewMessageSyncQueue] = useState<
-    Array<Message>
-  >([]);
-  const [updateMessageSyncQueue, setUpdateMessageSyncQueue] = useState<
-    Array<Message>
-  >([]);
-  const [newConversationSyncQueue, setNewConversationSyncQueue] = useState<
-    Array<Message>
-  >([]);
-  const [newAgentAvatarSyncQueue, setNewAgentAvatarSyncQueue] = useState<
-    Array<Message>
-  >([]);
+    Map<string, ChatOverviewReturnType>
+  >(new Map());
+  const chatOverviewRef = useRef<Map<string, ChatOverviewReturnType>>(
+    new Map()
+  );
+  const newArrivedConversationQueueRef = useRef(Promise.resolve());
+  const newConversationMessageSyncQueueRef = useRef(Promise.resolve());
+  const newAgentAvatarSyncQueueRef = useRef(Promise.resolve());
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const [internetStatus, setInternetStatus] = useState<boolean | null>(false);
 
   const {
     data: user,
@@ -109,16 +97,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     refetch,
   } = useSupabase({
     fn: getCurrentUser,
-  });
-
-  const { data: chatOverView, refetch: fetchChatOverview } = useSupabase({
-    fn: getChatOverview,
-    params: {
-      user_id: user?.id,
-      range: [0, 15],
-      conversation_arr: conversationSyncTime,
-    },
-    skip: true,
   });
 
   const { data: wishlists, refetch: refetchWishlist } = useSupabase({
@@ -143,36 +121,63 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fn: getFilterDetail,
   });
 
-  const { data: inDeviceChatOverview } = useSupabase({
-    fn: getAllChatOverviews,
-    params: {
-      range: [0, 15],
-    },
-  });
+  const { data: inDeviceChatOverview, refetch: fetchInDeviceChatOverview } =
+    useSupabase({
+      fn: getAllChatOverviews,
+      params: {
+        range: [0, 20],
+      },
+    });
 
   useEffect(() => {
     refetchWishlist({
       userId: user?.id,
     });
-    fetchChatOverview({
-      user_id: user?.id,
-      range: [0, 15],
-      conversation_arr: conversationSyncTime,
-    });
   }, [user]);
 
-  useEffect(() => {
-    if (inDeviceChatOverview) {
-      for (const chat of inDeviceChatOverview) {
-        setConversationSyncTime((prev) => [
-          ...prev,
-          {
-            conversation_id: chat.conversation_id,
-            last_message_time: new Date(chat?.last_message_time ?? 0),
-          },
-        ]);
-        setChatOverviewManager(inDeviceChatOverview);
+  const processUnreceivedMessages = async () => {
+    if (user) {
+      while (true) {
+        const chatUnreadQueuedMessages =
+          await getConversationUnreceivedMessages({
+            user_id: user.id,
+            limit: 20,
+          });
+        console.log("inside");
+        if (chatUnreadQueuedMessages) {
+          if (chatUnreadQueuedMessages.length === 0) break;
+          else {
+            for await (const element of chatUnreadQueuedMessages) {
+              await insertMessages(element.all_messages);
+              await updateConversation(element.conversation_id, {
+                "unread_count+": element.unread_count,
+              });
+              await deleteFromMessages({
+                conversation_id: element.conversation_id,
+              });
+            }
+          }
+        } else {
+          break;
+        }
       }
+      fetchInDeviceChatOverview({
+        range: [0, 20],
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (inDeviceChatOverview && inDeviceChatOverview.length > 0) {
+      let chatOverviewMap = new Map<string, ChatOverviewReturnType>();
+      for (const chat of inDeviceChatOverview) {
+        chatOverviewMap.set(chat.conversation_id, chat);
+        enqueueToCheckNewConversationAvatar(chat.conversation_id, {
+          agentId: chat.agent_id,
+          avatarLastUpdate: chat.avatar_last_update,
+        });
+      }
+      setChatOverviewManager(chatOverviewMap);
     }
   }, [inDeviceChatOverview]);
 
@@ -193,29 +198,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
   }, [wishlistManager.propertyIds]);
 
   useEffect(() => {
-    updateNewMessageIntoDeviceStore();
-  }, [updateMessageSyncQueue]);
-
-  const updateNewMessageIntoDeviceStore = async () => {
-    try {
-      if (updateMessageSyncQueue) {
-        const dummyMessageUpdateQueue = [...updateMessageSyncQueue];
-        for (const message of dummyMessageUpdateQueue) {
-          delete message.identifier_agent;
-          delete message.identifier_user;
-          updateMessage(message, message.id);
-          changeMessageStatus(message.conversation_id, "received");
-          setUpdateMessageSyncQueue((prev) =>
-            prev.filter((item) => item.id !== message.id)
-          );
-        }
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
     if (wishlists) {
       setWishlistManager((prev) => ({
         ...prev,
@@ -225,267 +207,391 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
   }, [wishlists]);
 
   useEffect(() => {
-    syncNewMessagesIntoDeviceStorage();
-  }, [newMessageSyncQueue]);
+    chatOverviewRef.current = chatOverviewManager;
+  }, [chatOverviewManager]);
 
-  const syncNewMessagesIntoDeviceStorage = async () => {
-    try {
-      if (newMessageSyncQueue) {
-        const dumyMessageSyncQueue = [...newMessageSyncQueue];
-
-        for (const message of dumyMessageSyncQueue) {
-          updateConversation(message.conversation_id, {
-            last_message: message.created_at,
-          });
-
-          if (message.property_ref) {
-            message.property_ref = {
-              id: message.property_ref as string,
-            };
-          }
-          delete message.identifier_user;
-          delete message.identifier_agent;
-
-          insertMessage([message]);
-          setNewMessageSyncQueue((prev) =>
-            prev.filter(
-              (item) => item.conversation_id !== message.conversation_id
-            )
-          );
-        }
-      }
-    } catch (error) {}
-  };
-
-  useEffect(() => {
-    updateChatOverviewForNewMessage();
-  }, [newConversationSyncQueue]);
-  useEffect(() => {
-    handleNewAgentAvatar();
-  }, [newAgentAvatarSyncQueue]);
-
-  const updateChatOverviewForNewMessage = async () => {
-    try {
-      if (newConversationSyncQueue) {
-        const copyQueue = [...newConversationSyncQueue];
-
-        for (const queue of copyQueue) {
-          let newChatOverView = await getChatOverviews(queue.conversation_id);
-          newChatOverView[0].unread_count =
-            newChatOverView[0].unread_count ?? 0 + 1;
-          setChatOverviewManager((prev) => [newChatOverView[0], ...prev]);
-          setNewAgentAvatarSyncQueue((prev) => [...prev, queue]);
-          setNewConversationSyncQueue((prev) =>
-            prev.filter(
-              (item) =>
-                item.conversation_id !== newChatOverView[0].conversation_id
-            )
-          );
-        }
-      }
-    } catch (error) {
-      console.error(error);
+  const addNewConversation = useCallback(async (message: Message) => {
+    let newChatOverview = await getChatOverviews(message.conversation_id);
+    if (newChatOverview) {
+      newChatOverview[0].last_message = message.message;
+      newChatOverview[0].last_message_time = message.created_at;
+      newChatOverview[0].last_message_sender_id = message.sender_id;
+      newChatOverview[0].unread_count = newChatOverview[0].unread_count + 1;
+      const newMap = new Map([
+        [newChatOverview[0].conversation_id, newChatOverview[0]],
+        ...chatOverviewRef.current,
+      ]);
+      updateConversation(newChatOverview[0].conversation_id, {
+        "unread_count+": 1,
+      });
+      setChatOverviewManager(newMap);
+      enqueueToCheckNewConversationAvatar(newChatOverview[0].conversation_id, {
+        agentId: newChatOverview[0].agent_id,
+        avatarLastUpdate: newChatOverview[0].avatar_last_update,
+      });
     }
-  };
-  const handleNewAgentAvatar = async () => {
-    try {
-      if (newAgentAvatarSyncQueue) {
-        const dummyAgentAvatarQueue = [...newAgentAvatarSyncQueue];
-        for (const message of dummyAgentAvatarQueue) {
-          const newChatOverView = chatOverviewManager.filter(
-            (prev) => prev.conversation_id === message.conversation_id
-          )[0];
-          const agentData = await getAgentData(newChatOverView.agent_id);
-          if (
-            agentData &&
-            new Date(agentData?.avatar.lastUpdate) >
-              new Date(newChatOverView.avatar_last_update)
-          ) {
-            newChatOverView.agent_avatar = agentData?.avatar.url;
-            newChatOverView.avatar_last_update = agentData?.avatar.lastUpdate;
-            setChatOverviewManager((prev) =>
-              prev.map((item) =>
-                item.conversation_id === newChatOverView.conversation_id
-                  ? {
-                      ...item,
-                      agent_avatar: agentData.avatar.url,
-                      avatar_last_update: agentData.avatar.lastUpdate,
-                    }
-                  : item
-              )
-            );
+  }, []);
 
-            const updatedAvatarLink = await saveProfileImage(
-              agentData?.avatar.url,
-              newChatOverView.agent_id
-            );
-
-            setChatOverviewManager((prev) =>
-              prev.map((item) =>
-                item.conversation_id === message.conversation_id
-                  ? {
-                      ...item,
-                      avatar_last_update: agentData.avatar.lastUpdate,
-                      agent_avatar: updatedAvatarLink,
-                    }
-                  : item
-              )
-            );
-
-            updateConversation(newChatOverView.conversation_id, {
-              agent_avatar: updatedAvatarLink,
-              avatar_last_update: agentData?.avatar.lastUpdate,
-            });
-          }
-        }
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  const handleChatOverView = async () => {
-    if (chatOverView) {
-      for (const chat of chatOverView) {
-        let oldChat = chatOverviewManager.filter(
-          (item) => (item.conversation_id = chat.conversation_id)
-        )[0];
-        oldChat.last_message_time = chat.last_message_time;
-
-        setChatOverviewManager((prev) =>
-          prev.filter((item) => item.conversation_id !== chat.conversation_id)
+  const enqueueNewArrivedConversation = (message: Message) => {
+    newArrivedConversationQueueRef.current =
+      newArrivedConversationQueueRef.current
+        .then(() => addNewConversation(message))
+        .catch((e) =>
+          console.error("error in new arrived conversation queue: ", e)
         );
-        setChatOverviewManager((prev) => [chat, ...prev]);
-
-        if (
-          new Date(oldChat.avatar_last_update) <
-          new Date(chat.avatar_last_update)
-        ) {
-          const updatedAvatarLink = await saveProfileImage(
-            chat.agent_avatar,
-            chat.agent_id
-          );
-
-          oldChat.agent_avatar = updatedAvatarLink;
-          oldChat.avatar_last_update = chat.avatar_last_update;
-        }
-
-        if (chat.unread_messages) {
-          let tempUnreadMessage = chat.unread_messages;
-          const propertyIdArr = tempUnreadMessage
-            .map((item) => item.property_ref)
-            .filter((item) => item);
-
-          if (propertyIdArr.length > 0) {
-            let propertyDetail = await getPropertyById(propertyIdArr);
-            if (propertyDetail) {
-              for (let i = 0; i < propertyDetail?.length; i++) {
-                const uploadLink = await savePropertyImage(
-                  propertyDetail[i].image,
-                  propertyDetail[i].id
-                );
-                propertyDetail[i].image = uploadLink;
-              }
-              tempUnreadMessage = tempUnreadMessage.map((item) => ({
-                ...item,
-                property_ref: propertyDetail.filter(
-                  (prop) => prop.id === item.property_ref
-                )[0],
-              }));
-              insertMessage(tempUnreadMessage);
-            }
-          }
-        }
-
-        delete chat.unread_messages;
-        delete chat.last_file;
-        delete chat.last_property_ref;
-        delete chat.last_message;
-
-        if ((chat.unread_count = 0)) delete chat.unread_count;
-
-        updateConversation(chat.conversation_id, chat);
-      }
-    }
   };
 
-  useEffect(() => {
-    handleChatOverView();
-  }, [chatOverView]);
+  const checkNewConversationAvatarUpdate = useCallback(
+    async (
+      convId: string,
+      agentDetail: { agentId: string; avatarLastUpdate: string }
+    ) => {
+      const newAgentAvatar = await getAgentData(agentDetail.agentId);
+      if (newAgentAvatar) {
+        if (
+          new Date(newAgentAvatar.avatar.lastUpdate) >
+          new Date(agentDetail.avatarLastUpdate)
+        ) {
+          enqueueNewAgentAvatar(
+            convId,
+            agentDetail.agentId,
+            newAgentAvatar.avatar.url,
+            newAgentAvatar.avatar.lastUpdate
+          );
+        }
+      }
+    },
+    []
+  );
 
-  useEffect(() => {
-    let channel = null;
-    if (user) {
-      channel = Supabase.channel(`conversation=${user?.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "messages",
-            filter: `identifier_user=eq.${user?.id}`,
+  const enqueueToCheckNewConversationAvatar = (
+    convId: string,
+    agentDetail: {
+      agentId: string;
+      avatarLastUpdate: string;
+    }
+  ) => {
+    newConversationMessageSyncQueueRef.current =
+      newConversationMessageSyncQueueRef.current
+        .then(() => checkNewConversationAvatarUpdate(convId, agentDetail))
+        .catch((e) => console.error("error in new conversation avatar: ", e));
+  };
+
+  const updateAgentAvatar = useCallback(
+    async (
+      convId: string,
+      agentId: string,
+      agentAvatar: string,
+      avatarLastUpdate: string
+    ) => {
+      const conv = chatOverviewRef.current.get(convId);
+      if (conv) {
+        const uri = await cacheProfileImage(agentAvatar, agentId);
+        if (uri) {
+          conv.agent_avatar = uri;
+          const newMap = new Map(chatOverviewRef.current);
+          newMap.set(convId, conv);
+          setChatOverviewManager(newMap);
+          updateConversation(convId, {
+            agent_avatar: uri,
+            avatar_last_update: avatarLastUpdate,
+          });
+        }
+      }
+    },
+    []
+  );
+
+  const enqueueNewAgentAvatar = (
+    convId: string,
+    agentId: string,
+    agentAvatar: string,
+    avatarLastUpdate: string
+  ) => {
+    newAgentAvatarSyncQueueRef.current = newAgentAvatarSyncQueueRef.current
+      .then(() =>
+        updateAgentAvatar(convId, agentId, agentAvatar, avatarLastUpdate)
+      )
+      .catch((e) => console.error("error in new agent avatar queue: ", e));
+  };
+
+  const sendRes = useCallback(
+    (msgId: string, conversation_id: string) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "received",
+          payload: {
+            msgId,
+            convId: conversation_id,
           },
-          (payload) => {
-            let newData: Message = payload.new as Message;
-            switch (payload.eventType) {
-              case "INSERT":
-                const conversationToUpdate = chatOverviewManager.filter(
-                  (item) => item.conversation_id === newData.conversation_id
-                )[0];
-                if (conversationToUpdate) {
-                  setChatOverviewManager((prev) => [
-                    {
-                      ...conversationToUpdate,
-                      last_message: newData.message,
-                      last_file: newData.file,
-                      last_property_ref: newData.property_ref,
-                      last_message_time: newData.created_at,
-                      unread_count:
-                        newData.conversation_id !== activeConversationId
-                          ? conversationToUpdate.unread_count ?? 0 + 1
-                          : 0,
-                    },
-                    ...prev.filter(
-                      (item) => item.conversation_id !== newData.conversation_id
-                    ),
-                  ]);
-                  updateConversation(newData.conversation_id, {
-                    unread_count: conversationToUpdate.unread_count ?? 0 + 1,
-                    last_message_time: newData.created_at,
-                  });
-                } else {
-                  if (
-                    newConversationSyncQueue.filter(
-                      (item) => item.conversation_id === newData.conversation_id
-                    )[0]
-                  ) {
-                    setNewConversationSyncQueue((prev) => [
-                      ...prev.filter(
-                        (item) =>
-                          item.conversation_id !== newData.conversation_id
-                      ),
-                      newData,
-                    ]);
-                  } else {
-                    setNewConversationSyncQueue((prev) => [...prev, newData]);
-                  }
-                }
-                if (newData.conversation_id !== activeConversationId)
-                  setNewMessageSyncQueue((prev) => [...prev, newData]);
-                break;
-              case "UPDATE":
-                if (newData.conversation_id !== activeConversationId)
-                  setUpdateMessageSyncQueue((prev) => [...prev, newData]);
-                break;
+        });
+      }
+    },
+    [channelRef.current]
+  );
+
+  const handleMessageRead = useCallback((conversation_id: string) => {
+    if (chatOverviewRef.current) {
+      const newMap = new Map(chatOverviewRef.current);
+      const conv = newMap.get(conversation_id);
+      if (conv) {
+        newMap.set(conversation_id, { ...conv, last_message_status: "read" });
+      }
+      setChatOverviewManager(newMap);
+      updateMessage({
+        msg: { status: "read" },
+        checkCondition: {
+          status: "read",
+          conversation_id: conversation_id,
+        },
+        conditionSeperator: "AND",
+        conditionOperator: {
+          conversation_id: "=",
+          status: "<>",
+        },
+      });
+    }
+  }, []);
+
+  const handleMessageRes = useCallback(
+    (conversation_id: string, agent_id: string) => {
+      if (chatOverviewRef.current) {
+        if (conversation_id === "") {
+          for (const [key, conv] of chatOverviewRef.current) {
+            if (conv.agent_id === agent_id) {
+              const updatedConv = { ...conv, last_message_status: "received" };
+
+              // Create a shallow copy of the map with updated item
+              const newMap = new Map(chatOverviewRef.current);
+              newMap.set(key, updatedConv);
+
+              // Update the ref and state
+              setChatOverviewManager(newMap);
+              break;
             }
+          }
+          updateMessage({
+            msg: { status: "received" },
+            checkCondition: {
+              status: "sent",
+              receiver_id: agent_id,
+            },
+            conditionSeperator: "AND",
+            conditionOperator: {
+              status: "=",
+              receiver_id: "=",
+            },
+          });
+        } else {
+          const newMap = new Map(chatOverviewRef.current);
+          const conv = chatOverviewRef.current.get(conversation_id);
+          if (conv) {
+            conv.last_message_status = "received";
+            newMap.set(conversation_id, conv);
+          }
+          setChatOverviewManager(chatOverviewRef.current);
+          updateMessage({
+            msg: { status: "received" },
+            checkCondition: {
+              status: "sent",
+              conversation_id: conversation_id,
+            },
+            conditionSeperator: "AND",
+            conditionOperator: {
+              converesation_id: "=",
+              status: "=",
+            },
+          });
+        }
+      }
+    },
+    []
+  );
+
+  const initiateChannel = useCallback(() => {
+    if (!channelRef.current) {
+      const channel = Supabase.channel(`user: ${user?.id}`, {
+        config: {
+          presence: { key: user?.id },
+        },
+      });
+      channel
+        .on(
+          "presence",
+          {
+            event: "sync",
+          },
+          () => {
+            const state = channel.presenceState();
+            const onlineUsers = Object.values(state).flat();
+            console.log(onlineUsers);
           }
         )
-        .subscribe();
+        .on("broadcast", { event: "res" }, (payload) => {
+          handleMessageRes(payload.payload.convId, payload.payload.agentId);
+          updateConversationSupabase({
+            columnClaus: { user_message_status: null },
+            comparisionClaus: {
+              conversation_id: payload.payload.convId,
+            },
+          });
+        })
+        .on("broadcast", { event: "read" }, (payload) => {
+          handleMessageRead(payload.payload.convId);
+          updateConversationSupabase({
+            columnClaus: { user_message_status: null },
+            comparisionClaus: {
+              conversation_id: payload.payload.convId,
+            },
+          });
+        })
+        .on("broadcast", { event: "shout" }, (payload) => {
+          const data: Message = payload.payload.message;
+          sendRes(data.id, data.conversation_id);
+          if (chatOverviewRef.current.get(data.conversation_id)) {
+            const newMap = new Map(chatOverviewRef.current);
+            const conv: ChatOverviewReturnType = newMap.get(
+              data.conversation_id
+            )!;
+            newMap.delete(data.conversation_id);
+            setChatOverviewManager(
+              new Map([
+                [
+                  data.conversation_id,
+                  {
+                    ...conv,
+                    last_message: data.message,
+                    last_message_time: data.created_at,
+                    unread_count: (conv?.unread_count ?? 0) + 1,
+                  },
+                ],
+                ...newMap,
+              ])
+            );
+            updateConversation(data.conversation_id, {
+              unread_count: (conv.unread_count ?? 0) + 1,
+            });
+          } else {
+            enqueueNewArrivedConversation(data);
+          }
+          insertMessages([data]);
+        })
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            channel.track({
+              user_id: user?.id,
+              last_seen: new Date().toISOString(),
+            });
+          }
+        });
+      channelRef.current = channel;
+    }
+  }, [user]);
+
+  const messageStatus = async () => {
+    const message_status = await getFromConversation<string, string>({
+      comparisionClaus: { user: user?.id! },
+      column: ["id", "user_message_status"],
+    });
+    if (message_status) {
+      for (const element of message_status) {
+        if (element.user_message_status) {
+          updateMessage({
+            msg: {
+              status: element.user_message_status,
+            },
+            checkCondition: {
+              conversation_id: element.id,
+              status: element.user_message_status,
+            },
+            conditionSeperator: "AND",
+            conditionOperator: {
+              conversation_id: "=",
+              status: "<>",
+            },
+          });
+          if (chatOverviewRef.current) {
+            let conv = chatOverviewRef.current.get(element.id);
+            if (conv) {
+              conv.last_message_status = element.user_message_status;
+              chatOverviewRef.current.set(element.id, conv);
+            }
+          }
+          updateConversationSupabase({
+            comparisionClaus: {
+              id: element.id,
+            },
+            columnClaus: {
+              user_message_status: null,
+            },
+          });
+        }
+      }
+      setChatOverviewManager(chatOverviewRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (channelRef.current) {
+      Supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    let subscription: any;
+    if (user) {
+      const checkInitial = async () => {
+        try {
+          const state = await getNetworkStateAsync();
+          console.log("Initial check:", state.isConnected);
+          if (state.isConnected) {
+            try {
+              initiateChannel();
+              await processUnreceivedMessages();
+              await updateConversationSupabase({
+                columnClaus: { agent_message_status: "received" },
+                comparisionClaus: {
+                  user: user.id!,
+                },
+              });
+              await messageStatus();
+            } catch (error) {
+              console.error(error);
+            }
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
+      checkInitial();
+
+      let timer: NodeJS.Timeout;
+      subscription = addNetworkStateListener(
+        ({ type, isConnected, isInternetReachable }) => {
+          if (isConnected) {
+            try {
+              clearTimeout(timer);
+              timer = setTimeout(() => {
+                processUnreceivedMessages();
+                initiateChannel();
+                messageStatus();
+              }, 500);
+            } catch (error) {
+              console.error("Message processing failed: ", error);
+            }
+          } else {
+            if (channelRef.current) {
+              Supabase.removeChannel(channelRef.current);
+              channelRef.current = null;
+            }
+          }
+        }
+      );
     }
 
     return () => {
-      if (channel) {
-        Supabase.removeChannel(channel);
+      if (subscription) {
+        subscription.remove();
       }
     };
   }, [user]);
@@ -506,7 +612,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
         setWishlistManager,
         chatOverviewManager,
         setChatOverviewManager,
-        setActiveConversationId,
       }}
     >
       {children}

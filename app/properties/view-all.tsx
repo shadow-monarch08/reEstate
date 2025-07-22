@@ -125,10 +125,20 @@ const ViewAll = () => {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (bottomSheetModalRef.current) {
+        bottomSheetModalRef.current[1]?.dismiss();
+      }
+    };
+  }, []);
+
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
 
   const handlePresentModalPress = useCallback(() => {
-    bottomSheetModalRef.current[1]?.present();
+    if (bottomSheetModalRef.current) {
+      bottomSheetModalRef.current[1]?.present();
+    }
   }, []);
 
   const renderItem = useCallback(
@@ -160,9 +170,9 @@ const ViewAll = () => {
   );
 
   return (
-    <SafeAreaView className="min-h-full bg-accent-100 flex-1">
-      <GestureHandlerRootView>
-        <BottomSheetModalProvider>
+    <GestureHandlerRootView>
+      <BottomSheetModalProvider>
+        <SafeAreaView className="min-h-full bg-accent-100 flex-1">
           <FlatList
             data={loading ? [] : isFirstInstance ? properties : data}
             keyExtractor={(item) => item.id}
@@ -258,9 +268,9 @@ const ViewAll = () => {
             showsVerticalScrollIndicator={false}
           />
           <SortModal />
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
-    </SafeAreaView>
+        </SafeAreaView>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 };
 

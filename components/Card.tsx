@@ -9,6 +9,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { ChatOverviewReturnType } from "@/lib/supabase";
 import { router } from "expo-router";
+import { useGlobalContext } from "@/lib/global-provider";
+import { timeSince, formatTimestamp } from "@/utils";
 
 interface propertyItem {
   address: string;
@@ -19,7 +21,7 @@ interface propertyItem {
   rating: number;
 }
 
-interface Props {
+export interface Props {
   onPress?: () => void;
   item: propertyItem;
   isWishlisted?: boolean;
@@ -32,79 +34,6 @@ interface reviewProps {
   avatar?: string;
   review?: string;
   created_at: string;
-}
-
-function timeSince(dateString: string): string {
-  // Step 1: Replace space with 'T' to form ISO date
-  let isoString = dateString.replace(" ", "T");
-
-  // Step 2: Trim microseconds to 3 digits (JavaScript supports only milliseconds)
-  isoString = isoString.replace(/(\.\d{3})\d*/, "$1");
-
-  // Step 3: Ensure timezone is correctly formatted
-  isoString = isoString.replace("+00:00", "Z");
-
-  const inputDate = new Date(isoString);
-  const now = new Date();
-  // console.log(now.toString())
-
-  if (isNaN(inputDate.getTime())) {
-    return "Invalid date";
-  }
-
-  const diffInMs = now.getTime() - inputDate.getTime();
-  const diffInSeconds = Math.floor(diffInMs / 1000);
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  const diffInDays = Math.floor(diffInHours / 24);
-  const diffInMonths = Math.floor(diffInDays / 30); // Approximate
-  const diffInYears = Math.floor(diffInDays / 365); // Approximate
-
-  if (diffInYears > 0) {
-    return `${diffInYears} year${diffInYears > 1 ? "s" : ""} ago`;
-  } else if (diffInMonths > 0) {
-    return `${diffInMonths} month${diffInMonths > 1 ? "s" : ""} ago`;
-  } else if (diffInDays > 0) {
-    return `${diffInDays} day${diffInDays > 1 ? "s" : ""} ago`;
-  } else if (diffInHours > 0) {
-    return `${diffInHours} hour${diffInHours > 1 ? "s" : ""} ago`;
-  } else if (diffInMinutes > 0) {
-    return `${diffInMinutes} minute${diffInMinutes > 1 ? "s" : ""} ago`;
-  } else {
-    return "just now";
-  }
-}
-
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-
-  const isSameDay = (d1: Date, d2: Date) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
-
-  const isYesterday = (d: Date) => {
-    const yesterday = new Date();
-    yesterday.setDate(now.getDate() - 1);
-    return isSameDay(d, yesterday);
-  };
-
-  if (isSameDay(date, now)) {
-    // 24-hour format (e.g., 14:45)
-    return "Today";
-  }
-
-  if (isYesterday(date)) {
-    return "Yesterday";
-  }
-
-  // Format date (e.g., 09 Jun 2025)
-  return date.toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  });
 }
 
 const LikeButton = ({
@@ -449,31 +378,60 @@ export const ChatCard = ({
 }: { item: ChatOverviewReturnType } & {
   handlePress: (param: object) => void;
 }) => {
+  const { user } = useGlobalContext();
   return (
     <TouchableOpacity
       activeOpacity={0.6}
-      className="flex flex-row justify-between items-center w-full mt-5 h-fit relative"
+      className="flex flex-row justify-between items-center w-full mt-7 h-fit relative"
       onPress={() =>
         handlePress({
           conversation_id: item.conversation_id,
           avatar_url: item.agent_avatar,
+          avatar_last_update: item.avatar_last_update,
           agent_name: item.agent_name,
           agent_id: item.agent_id,
+          isFirstMessage: false,
         })
       }
     >
       <View className="flex flex-row gap-4 w-2/3">
-        <Image
-          src={item.agent_avatar}
-          className="size-16 rounded-full"
-        />
+        <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full">
+          <Image
+            src={item.agent_avatar}
+            className="h-16 w-20"
+            resizeMode="cover"
+          />
+        </View>
         <View className="flex flex-col justify-between py-1">
           <Text className="text-black-300 font-rubik-medium text-lg">
             {item.agent_name}
           </Text>
-          <Text className="text-black-200 font-rubik text-sm" numberOfLines={1}>
-            {item.last_message}
-          </Text>
+          <View className="flex flex-row gap-2">
+            {user?.id === item.last_message_sender_id &&
+              (item.last_message_status === "sent" ? (
+                <Image
+                  source={icons.tick}
+                  tintColor={"#666876"}
+                  className="size-5"
+                />
+              ) : (
+                <Image
+                  source={icons.tick_double}
+                  tintColor={
+                    item.last_message_status === "received"
+                      ? "#666876"
+                      : "#0061FF"
+                  }
+                  className="size-5"
+                />
+              ))}
+            <Text
+              className="text-black-200 font-rubik text-sm"
+              numberOfLines={1}
+            >
+              {item.last_message}
+            </Text>
+          </View>
         </View>
       </View>
       <View className="flex flex-col justify-between items-end absolute right-0 h-full">

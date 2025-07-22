@@ -15,9 +15,6 @@ import NoResult from "@/components/NoResult";
 import { useSupabase } from "@/lib/useSupabase";
 import { getSearchedProperties, PropertyReturnType } from "@/lib/supabase";
 import { useGlobalContext } from "@/lib/global-provider";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { FilterModal } from "@/components/FilterModal";
 
 const Explore = () => {
   const [range, setRange] = useState<[number, number]>([0, 5]);
@@ -159,116 +156,111 @@ const Explore = () => {
 
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
-      <GestureHandlerRootView className="flex-1">
-        <BottomSheetModalProvider>
-          <FlatList
-            data={
-              loading
-                ? []
-                : isFirstInstance
-                ? data
-                : [...(data ?? []), ...(properties ?? [])]
-            }
-            onEndReached={() => fetchMoreData()}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            numColumns={cardType === "grid" ? 2 : 1}
-            contentContainerClassName="pb-12 min-h-full pt-7"
-            ListEmptyComponent={
-              loading || loadingMoreProperties ? (
-                <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
-                  {[...Array(4)].map((_, i) =>
-                    cardType === "grid" ? (
-                      <LoadingCard key={i} />
-                    ) : (
-                      <LoadingSearchCard key={i} />
-                    )
-                  )}
-                </View>
-              ) : (
-                <NoResult />
-              )
-            }
-            ListFooterComponent={
-              isEnd ? (
-                <Text className="text-black-200 font-rubik-medium text-center mt-1">
-                  {data?.length != 0 ? "No more property!🥹" : ""}
+      <FlatList
+        data={
+          loading
+            ? []
+            : isFirstInstance
+            ? data
+            : [...(data ?? []), ...(properties ?? [])]
+        }
+        onEndReached={() => fetchMoreData()}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        numColumns={cardType === "grid" ? 2 : 1}
+        contentContainerClassName="pb-12 min-h-full pt-7"
+        ListEmptyComponent={
+          loading || loadingMoreProperties ? (
+            <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
+              {[...Array(4)].map((_, i) =>
+                cardType === "grid" ? (
+                  <LoadingCard key={i} />
+                ) : (
+                  <LoadingSearchCard key={i} />
+                )
+              )}
+            </View>
+          ) : (
+            <NoResult />
+          )
+        }
+        ListFooterComponent={
+          isEnd ? (
+            <Text className="text-black-200 font-rubik-medium text-center mt-1">
+              {data?.length != 0 ? "No more property!🥹" : ""}
+            </Text>
+          ) : (
+            <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
+              {[...Array(4)].map((_, i) =>
+                cardType === "grid" ? (
+                  <LoadingCard key={i} />
+                ) : (
+                  <LoadingSearchCard key={i} />
+                )
+              )}
+            </View>
+          )
+        }
+        extraData={cardType}
+        columnWrapperClassName={
+          cardType === "grid" ? "flex flex-row gap-5 px-5 mt-5" : ""
+        }
+        key={cardType}
+        ListHeaderComponent={
+          <View className="mb-5">
+            <View className="px-5">
+              <View className="w-full flex flex-row justify-between items-center">
+                <TouchableOpacity
+                  className="p-3 rounded-full bg-primary-200"
+                  onPress={() => router.back()}
+                >
+                  <Image
+                    source={icons.back_arrow}
+                    className="size-7"
+                    tintColor={"#191D31"}
+                  />
+                </TouchableOpacity>
+                <Text className="text-base font-rubik-medium text-black-300 mt-0.5">
+                  Search for Your Ideal Home
                 </Text>
-              ) : (
-                <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
-                  {[...Array(4)].map((_, i) =>
-                    cardType === "grid" ? (
-                      <LoadingCard key={i} />
-                    ) : (
-                      <LoadingSearchCard key={i} />
-                    )
-                  )}
-                </View>
-              )
-            }
-            extraData={cardType}
-            columnWrapperClassName={
-              cardType === "grid" ? "flex flex-row gap-5 px-5 mt-5" : ""
-            }
-            key={cardType}
-            ListHeaderComponent={
-              <View className="mb-5">
-                <View className="px-5">
-                  <View className="w-full flex flex-row justify-between items-center">
-                    <TouchableOpacity
-                      className="p-3 rounded-full bg-primary-200"
-                      onPress={() => router.back()}
-                    >
-                      <Image
-                        source={icons.back_arrow}
-                        className="size-7"
-                        tintColor={"#191D31"}
-                      />
-                    </TouchableOpacity>
-                    <Text className="text-base font-rubik-medium text-black-300 mt-0.5">
-                      Search for Your Ideal Home
-                    </Text>
-                    <TouchableOpacity>
-                      <Image
-                        source={icons.bell}
-                        resizeMode="contain"
-                        className="size-7"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <Search enableFocus={false} />
-                </View>
-                <Filters_small />
-                <View className="px-5 mt-5 flex flex-row justify-between items-center">
-                  <Text className="font-rubik-medium text-xl text-black-300">
-                    Found {properties?.length}{" "}
-                    {!params.filter || params.filter === "All"
-                      ? "Results"
-                      : params.filter + "s"}
-                  </Text>
-                  <View className="flex flex-row gap-4">
-                    <TouchableOpacity onPress={() => setCardType("grid")}>
-                      <Image
-                        source={icons.all}
-                        className="size-6"
-                        tintColor={cardType === "grid" ? "#0061FF" : "#8C8E98"}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCardType("list")}>
-                      <Image
-                        source={icons.list}
-                        className="size-6"
-                        tintColor={cardType === "list" ? "#0061FF" : "#8C8E98"}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <TouchableOpacity>
+                  <Image
+                    source={icons.bell}
+                    resizeMode="contain"
+                    className="size-7"
+                  />
+                </TouchableOpacity>
               </View>
-            }
-          />
-          <FilterModal />
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
+              <Search enableFocus={false} />
+            </View>
+            <Filters_small />
+            <View className="px-5 mt-5 flex flex-row justify-between items-center">
+              <Text className="font-rubik-medium text-xl text-black-300">
+                Found {properties?.length}{" "}
+                {!params.filter || params.filter === "All"
+                  ? "Results"
+                  : params.filter + "s"}
+              </Text>
+              <View className="flex flex-row gap-4">
+                <TouchableOpacity onPress={() => setCardType("grid")}>
+                  <Image
+                    source={icons.all}
+                    className="size-6"
+                    tintColor={cardType === "grid" ? "#0061FF" : "#8C8E98"}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setCardType("list")}>
+                  <Image
+                    source={icons.list}
+                    className="size-6"
+                    tintColor={cardType === "list" ? "#0061FF" : "#8C8E98"}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };
