@@ -34,6 +34,7 @@ import language from "@/assets/icons/language.png";
 import laundry from "@/assets/icons/laundry.png";
 import list from "@/assets/icons/list.png";
 import location from "@/assets/icons/location.png";
+import location_marker from "@/assets/icons/location_marker.png";
 import logout from "@/assets/icons/logout.png";
 import map from "@/assets/icons/map.png";
 import mic from "@/assets/icons/mic.png";
@@ -58,6 +59,7 @@ import smiley from "@/assets/icons/smiley.png";
 import star from "@/assets/icons/star.png";
 import studio from "@/assets/icons/studio.png";
 import swim from "@/assets/icons/swim.png";
+import target from "@/assets/icons/target.png";
 import tick from "@/assets/icons/tick.png";
 import tick_double from "@/assets/icons/tick_double.png";
 import time_down from "@/assets/icons/time-down.png";
@@ -106,6 +108,7 @@ export default {
   laundry,
   list,
   location,
+  location_marker,
   logout,
   map,
   mic,
@@ -130,6 +133,7 @@ export default {
   star,
   studio,
   swim,
+  target,
   tick,
   tick_double,
   time_down,

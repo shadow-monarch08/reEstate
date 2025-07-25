@@ -36,9 +36,9 @@ export const SearchButton = ({ query }: { query: string }) => {
   return (
     <TouchableOpacity
       onPress={() => router.push(`/search/${query}`)}
-      className="w-full"
+      className="w-full bg-accent-100 rounded-2xl overflow-hidden"
     >
-      <View className="flex flex-row bg-primary-100 px-3 py-4 rounded-2xl">
+      <View className="flex flex-row bg-primary-100 px-3 py-4">
         <View className="flex flex-row flex-1 gap-5">
           <Image
             source={icons.search_outline}

@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
 import React, { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { categories } from "@/constants/data";
+import { areaRange, categories } from "@/constants/data";
 import icons from "@/constants/icons";
 
 export const Filters = () => {
@@ -109,6 +109,65 @@ export const Filters_small = () => {
             <Text
               className={`text-sm mt-0.5 font-rubik ${
                 selectedCategory === item.category
+                  ? "text-white"
+                  : "text-black-300"
+              }`}
+            >
+              {item.title}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+};
+
+export const Filter_area = () => {
+  const params = useLocalSearchParams<{ area?: string }>();
+  const [selectedCategory, setSelectedCategory] = useState(
+    Number(params.area) || 0.5
+  );
+  const handleFilterPress = (category: number) => {
+    if (selectedCategory === category) {
+      setSelectedCategory(0.5);
+      router.setParams({ area: "0.5" });
+      return;
+    }
+    setSelectedCategory(category);
+    router.setParams({ area: category.toString() });
+  };
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      className="pt-5"
+    >
+      <View className="flex flex-row gap-2 px-5">
+        {areaRange.map((item, index) => (
+          <TouchableOpacity
+            className={`py-2 px-3 rounded-full border-primary-200 border flex flex-row gap-2 items-center ${
+              selectedCategory === item.value
+                ? "bg-primary-300"
+                : selectedCategory > item.value
+                ? "bg-blue-400"
+                : "bg-blue-50"
+            }`}
+            key={index}
+            activeOpacity={0.7}
+            onPress={() => handleFilterPress(item.value)}
+          >
+            <Image
+              source={item.icon}
+              className="size-6"
+              tintColor={
+                selectedCategory === item.value || selectedCategory > item.value
+                  ? "white"
+                  : "#666876"
+              }
+            />
+            <Text
+              className={`text-sm mt-0.5 font-rubik ${
+                selectedCategory === item.value || selectedCategory > item.value
                   ? "text-white"
                   : "text-black-300"
               }`}

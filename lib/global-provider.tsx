@@ -89,7 +89,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const newConversationMessageSyncQueueRef = useRef(Promise.resolve());
   const newAgentAvatarSyncQueueRef = useRef(Promise.resolve());
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const [internetStatus, setInternetStatus] = useState<boolean | null>(false);
 
   const {
     data: user,

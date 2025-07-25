@@ -80,3 +80,15 @@ export function simpleFormatTimestamp(timestamp: string): string {
     hour12: true,
   });
 }
+
+export const getMapRegionWithRadius = (latitude: number, radius: number) => {
+  const oneDegreeOfLatitudeInKm = 111.32;
+  const latitudeDelta = radius / oneDegreeOfLatitudeInKm;
+  const longitudeDelta =
+    radius / (oneDegreeOfLatitudeInKm * Math.cos(latitude * (Math.PI / 180)));
+
+  return {
+    latitudeDelta: latitudeDelta * 1.5,
+    longitudeDelta: longitudeDelta * 1.5,
+  };
+};

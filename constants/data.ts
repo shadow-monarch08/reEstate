@@ -68,6 +68,19 @@ export const categories = [
   { title: "Others", category: "Other", icon: icons.more },
 ];
 
+export const areaRange = [
+  { title: "0.5 km", value: 0.5, icon: icons.location_marker },
+  { title: "1 km", value: 1, icon: icons.location_marker },
+  { title: "2 km", value: 2, icon: icons.location_marker },
+  { title: "3 km", value: 3, icon: icons.location_marker },
+  { title: "5 km", value: 5, icon: icons.location_marker },
+  { title: "10 km", value: 10, icon: icons.location_marker },
+  { title: "15 km", value: 15, icon: icons.location_marker },
+  { title: "25 km", value: 25, icon: icons.location_marker },
+  { title: "50 km", value: 50, icon: icons.location_marker },
+  { title: "100 km", value: 100, icon: icons.location_marker },
+];
+
 export const settings = [
   {
     title: "My Bookings",

@@ -413,6 +413,7 @@ export const FilterModal = React.memo(() => {
         if (index >= 0) handleModalOpen();
         else handleModalClose();
       }}
+      index={0}
       backdropComponent={backDrop}
       style={styles.shadowBox}
       snapPoints={snapPoints}
