@@ -4,10 +4,10 @@ import { Filters_small } from "@/components/Filters";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NoResult from "@/components/NoResult";
 import {
-  Card,
-  LoadingCard,
-  LoadingSearchCard,
-  SearchCard,
+  ColumnCard,
+  LoadingColumnCard,
+  LoadingRowCard,
+  RowCard,
 } from "@/components/Card";
 import { useGlobalContext } from "@/lib/global-provider";
 import { router, useLocalSearchParams } from "expo-router";
@@ -124,19 +124,25 @@ const Wishlist = () => {
     operation: "insert" | "delete"
   ) => {
     if (operation === "insert") {
-      setWishlistManager((prev) => ({
-        propertyIds: [...(prev.propertyIds ?? []), propertyId],
-        operation: "insert",
-        changeId: propertyId,
-      }));
+      setWishlistManager((prev) => {
+        const newPropertyIds = new Set(prev.propertyIds);
+        newPropertyIds.add(propertyId);
+        return {
+          propertyIds: newPropertyIds,
+          operation: "insert",
+          changeId: propertyId,
+        };
+      });
     } else {
-      setWishlistManager((prev) => ({
-        propertyIds:
-          prev.propertyIds?.filter((property) => property !== propertyId) ??
-          prev.propertyIds,
-        operation: "delete",
-        changeId: propertyId,
-      }));
+      setWishlistManager((prev) => {
+        const newPropertyIds = new Set(prev.propertyIds);
+        newPropertyIds.delete(propertyId);
+        return {
+          propertyIds: newPropertyIds,
+          operation: "delete",
+          changeId: propertyId,
+        };
+      });
     }
   };
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
@@ -144,25 +150,17 @@ const Wishlist = () => {
   const renderItem = useCallback(
     ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
-        <Card
+        <ColumnCard
           item={item}
           onPress={() => handelCardPress(item.id)}
-          isWishlisted={
-            !!wishlistManager.propertyIds?.find(
-              (propertyId) => propertyId === item.id
-            )?.length
-          }
+          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
           handleWishlist={handleWishlist}
         />
       ) : (
-        <SearchCard
+        <RowCard
           item={item}
           onPress={() => handelCardPress(item.id)}
-          isWishlisted={
-            !!wishlistManager.propertyIds?.find(
-              (propertyId) => propertyId === item.id
-            )?.length
-          }
+          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
           handleWishlist={handleWishlist}
         />
       ),
@@ -193,9 +191,9 @@ const Wishlist = () => {
             <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
               {[...Array(4)].map((_, i) =>
                 cardType === "grid" ? (
-                  <LoadingCard key={i} />
+                  <LoadingColumnCard key={i} />
                 ) : (
-                  <LoadingSearchCard key={i} />
+                  <LoadingRowCard key={i} />
                 )
               )}
             </View>
@@ -214,9 +212,9 @@ const Wishlist = () => {
             <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
               {[...Array(4)].map((_, i) =>
                 cardType === "grid" ? (
-                  <LoadingCard key={i} />
+                  <LoadingColumnCard key={i} />
                 ) : (
-                  <LoadingSearchCard key={i} />
+                  <LoadingRowCard key={i} />
                 )
               )}
             </View>

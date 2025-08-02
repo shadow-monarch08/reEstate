@@ -88,7 +88,7 @@ export const getMapRegionWithRadius = (latitude: number, radius: number) => {
     radius / (oneDegreeOfLatitudeInKm * Math.cos(latitude * (Math.PI / 180)));
 
   return {
-    latitudeDelta: latitudeDelta * 1.5,
-    longitudeDelta: longitudeDelta * 1.5,
+    latitudeDelta: latitudeDelta * 2,
+    longitudeDelta: longitudeDelta * 2,
   };
 };

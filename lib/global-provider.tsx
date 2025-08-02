@@ -44,7 +44,7 @@ interface User {
 }
 
 interface wishlistManagerType {
-  propertyIds: Array<string | null> | [] | null;
+  propertyIds: Set<string> | null;
   operation: "insert" | "delete" | null;
   changeId: string;
 }
@@ -75,7 +75,7 @@ const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
 const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const [wishlistManager, setWishlistManager] = useState<wishlistManagerType>({
-    propertyIds: [],
+    propertyIds: new Set<string>(),
     operation: null,
     changeId: "",
   });
@@ -200,7 +200,7 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     if (wishlists) {
       setWishlistManager((prev) => ({
         ...prev,
-        propertyIds: wishlists.map((obj) => obj.property),
+        propertyIds: new Set(wishlists.map((wishlist) => wishlist.property)),
       }));
     }
   }, [wishlists]);

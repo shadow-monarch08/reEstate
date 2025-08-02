@@ -2,7 +2,6 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from "react-native";
 import React, { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { areaRange, categories } from "@/constants/data";
-import icons from "@/constants/icons";
 
 export const Filters = () => {
   const params = useLocalSearchParams<{ filter?: string }>();
@@ -149,8 +148,8 @@ export const Filter_area = () => {
               selectedCategory === item.value
                 ? "bg-primary-300"
                 : selectedCategory > item.value
-                ? "bg-blue-400"
-                : "bg-blue-50"
+                ? "bg-primary-200"
+                : "bg-primary-100"
             }`}
             key={index}
             activeOpacity={0.7}
@@ -159,15 +158,11 @@ export const Filter_area = () => {
             <Image
               source={item.icon}
               className="size-6"
-              tintColor={
-                selectedCategory === item.value || selectedCategory > item.value
-                  ? "white"
-                  : "#666876"
-              }
+              tintColor={selectedCategory === item.value ? "white" : "#666876"}
             />
             <Text
               className={`text-sm mt-0.5 font-rubik ${
-                selectedCategory === item.value || selectedCategory > item.value
+                selectedCategory === item.value
                   ? "text-white"
                   : "text-black-300"
               }`}

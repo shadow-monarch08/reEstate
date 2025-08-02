@@ -177,19 +177,25 @@ const Property = () => {
 
   const handleWishlist = (operation: "insert" | "delete") => {
     if (operation === "insert") {
-      setWishlistManager((prev) => ({
-        propertyIds: [...(prev.propertyIds ?? []), params.id],
-        operation: "insert",
-        changeId: params.id,
-      }));
+      setWishlistManager((prev) => {
+        const newPropertyIds = new Set(prev.propertyIds);
+        newPropertyIds.add(params.id);
+        return {
+          propertyIds: newPropertyIds,
+          operation: "insert",
+          changeId: params.id,
+        };
+      });
     } else {
-      setWishlistManager((prev) => ({
-        propertyIds:
-          prev.propertyIds?.filter((property) => property !== params.id) ??
-          prev.propertyIds,
-        operation: "delete",
-        changeId: params.id,
-      }));
+      setWishlistManager((prev) => {
+        const newPropertyIds = new Set(prev.propertyIds);
+        newPropertyIds.delete(params.id);
+        return {
+          propertyIds: newPropertyIds,
+          operation: "delete",
+          changeId: params.id,
+        };
+      });
     }
   };
 
@@ -245,7 +251,9 @@ const Property = () => {
   }, [loading]);
 
   const handelPress = (id: string | undefined) => {
-    bottomSheetModalRef.current[2]?.present();
+    if (bottomSheetModalRef.current) {
+      bottomSheetModalRef.current[2]?.present();
+    }
     router.setParams({ propertyId: id });
   };
 
@@ -297,9 +305,7 @@ const Property = () => {
                     <View className="flex flex-row gap-5 items-center">
                       <LikeButton
                         isWishlisted={
-                          !!wishlistManager.propertyIds?.find(
-                            (propertyId) => propertyId === params.id
-                          )?.length
+                          !!wishlistManager.propertyIds?.has(params.id)
                         }
                         handleWishlist={handleWishlist}
                       />

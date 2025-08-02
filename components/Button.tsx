@@ -36,7 +36,7 @@ export const SearchButton = ({ query }: { query: string }) => {
   return (
     <TouchableOpacity
       onPress={() => router.push(`/search/${query}`)}
-      className="w-full bg-accent-100 rounded-2xl overflow-hidden"
+      className="flex-1 rounded-2xl overflow-hidden"
     >
       <View className="flex flex-row bg-primary-100 px-3 py-4">
         <View className="flex flex-row flex-1 gap-5">

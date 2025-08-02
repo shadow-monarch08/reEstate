@@ -3,52 +3,78 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-ICONS_FOLDER = "./assets/icons"
-OUTPUT_FILE = "./constants/icons.ts"  # Change path if needed
+WATCH_CONFIG = [
+    {
+        "folder": "./assets/icons",
+        "output": "./constants/icons.ts",
+        "extensions": [".png"]
+    },
+    {
+        "folder": "./assets/images",
+        "output": "./constants/images.ts",
+        "extensions": [".png", ".jpg", ".jpeg"]
+    }
+]
 
 def to_variable_name(filename):
     name = os.path.splitext(filename)[0]
-    return name.replace("-", "_")
+    return name.replace("-", "_").replace(" ", "_")
 
-def generate_ts_file():
-    files = sorted([f for f in os.listdir(ICONS_FOLDER) if f.endswith(".png")])
+def generate_ts_file(folder, output_file, extensions):
+    files = sorted([
+        f for f in os.listdir(folder)
+        if os.path.splitext(f)[1].lower() in extensions
+    ])
     imports = []
     exports = []
 
     for file in files:
         var_name = to_variable_name(file)
-        imports.append(f'import {var_name} from "@/assets/icons/{file}";')
+        rel_path = os.path.relpath(folder, ".").replace("\\", "/")
+        imports.append(f'import {var_name} from "@/{"{}".format(rel_path)}/{file}";')
         exports.append(f"  {var_name},")
 
     content = "\n".join(imports) + "\n\nexport default {\n" + "\n".join(exports) + "\n};\n"
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(content)
-    print(f"[Updated] {OUTPUT_FILE} with {len(files)} icons.")
+    print(f"[Updated] {output_file} with {len(files)} files.")
 
-class IconFolderHandler(FileSystemEventHandler):
-    def on_modified(self, event):
-        if event.src_path.endswith(".png"):
-            generate_ts_file()
+class AssetFolderHandler(FileSystemEventHandler):
+    def __init__(self, folder, output_file, extensions):
+        self.folder = folder
+        self.output_file = output_file
+        self.extensions = extensions
 
-    def on_created(self, event):
-        if event.src_path.endswith(".png"):
-            generate_ts_file()
+    def should_handle(self, path):
+        return any(path.lower().endswith(ext) for ext in self.extensions)
 
-    def on_deleted(self, event):
-        if event.src_path.endswith(".png"):
-            generate_ts_file()
+    def on_any_event(self, event):
+        if not event.is_directory and self.should_handle(event.src_path):
+            generate_ts_file(self.folder, self.output_file, self.extensions)
 
 if __name__ == "__main__":
-    print(f"👀 Watching {ICONS_FOLDER} for changes...")
-    generate_ts_file()  # Initial sync
-    observer = Observer()
-    observer.schedule(IconFolderHandler(), path=ICONS_FOLDER, recursive=False)
-    observer.start()
+    observers = []
+    print("👀 Watching for changes...")
+
+    for config in WATCH_CONFIG:
+        folder = config["folder"]
+        output = config["output"]
+        extensions = config["extensions"]
+
+        generate_ts_file(folder, output, extensions)  # Initial run
+        handler = AssetFolderHandler(folder, output, extensions)
+        observer = Observer()
+        observer.schedule(handler, path=folder, recursive=False)
+        observer.start()
+        observers.append(observer)
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+        for observer in observers:
+            observer.stop()
+    for observer in observers:
+        observer.join()

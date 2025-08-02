@@ -86,6 +86,9 @@ export interface PropertyReturnType {
   name: string;
   price: number;
   rating: number;
+  wishlist: Array<{
+    property: string;
+  }>;
 }
 
 interface PropertyRef {
@@ -244,6 +247,16 @@ export interface ChatReturnType {
   file: File;
 }
 
+export interface PropertyWithinRadiusReturnType {
+  id: string;
+  name: string;
+  address: string;
+  price: number;
+  rating: number;
+  image: string;
+  geolocation: string;
+}
+
 export const login = async (): Promise<AuthError | null> => {
   try {
     await GoogleSignin.hasPlayServices();
@@ -316,7 +329,19 @@ export const getFeaturedProperties = async ({
       if (sort && sort !== "null") {
         const sortParam: Sort = JSON.parse(sort);
         const { data: properties, error } = await Supabase.from("properties")
-          .select("id, name, address, price, rating, image")
+          .select(
+            `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+          )
           .eq("type", filter)
           .order(`${Object.keys(sortParam)[0]}`, {
             ascending: Object.values(sortParam)[0] === "ascending",
@@ -330,7 +355,19 @@ export const getFeaturedProperties = async ({
         return properties;
       }
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .eq("type", filter)
         .range(range[0], range[1]);
 
@@ -342,7 +379,19 @@ export const getFeaturedProperties = async ({
     } else if (sort && sort !== "null") {
       const sortParam: Sort = JSON.parse(sort);
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .order(`${Object.keys(sortParam)[0]}`, {
           ascending: Object.values(sortParam)[0] === "ascending",
         })
@@ -355,7 +404,19 @@ export const getFeaturedProperties = async ({
       return properties;
     } else {
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .range(range[0], range[1]);
 
       if (error) {
@@ -381,7 +442,19 @@ export const getLatestProperties = async ({
       if (sort && sort !== "null") {
         const sortParam: Sort = JSON.parse(sort);
         const { data: properties, error } = await Supabase.from("properties")
-          .select("id, name, address, price, rating, image")
+          .select(
+            `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+          )
           .eq("type", filter)
           .order(`${Object.keys(sortParam)[0]}`, {
             ascending: Object.values(sortParam)[0] === "ascending",
@@ -395,7 +468,19 @@ export const getLatestProperties = async ({
         return properties;
       }
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .eq("type", filter)
         .range(range[0], range[1]);
 
@@ -409,7 +494,19 @@ export const getLatestProperties = async ({
       if (sort && sort !== "null") {
         const sortParam: Sort = JSON.parse(sort);
         const { data: properties, error } = await Supabase.from("properties")
-          .select("id, name, address, price, rating, image")
+          .select(
+            `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+          )
           .range(range[0], range[1])
           .order(`${Object.keys(sortParam)[0]}`, {
             ascending: Object.values(sortParam)[0] === "ascending",
@@ -421,7 +518,19 @@ export const getLatestProperties = async ({
         return properties;
       }
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .range(range[0], range[1]);
 
       if (error) {
@@ -448,7 +557,19 @@ export const getSearchedProperties = async ({
       const filters: Filters = JSON.parse(propFilter);
       if (query) {
         let { data: properties, error } = await Supabase.from("properties")
-          .select("id, name, address, price, rating, image")
+          .select(
+            `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+          )
           .contains("facilities", filters.facilities)
           .gte("price", filters.range[0])
           .gte("area", filters.areaRange[0])
@@ -466,7 +587,19 @@ export const getSearchedProperties = async ({
         return properties;
       }
       let { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .contains("facilities", filters.facilities)
         .gte("price", filters.range[0])
         .gte("area", filters.areaRange[0])
@@ -484,7 +617,19 @@ export const getSearchedProperties = async ({
     }
     if (query && filter && !(filter === "All")) {
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .eq("type", filter)
         .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
         .range(range[0], range[1]);
@@ -496,7 +641,19 @@ export const getSearchedProperties = async ({
       return properties;
     } else if (query && (!filter || filter === "All")) {
       const { data: properties, error } = await Supabase.from("properties")
-        .select("id, name, address, price, rating, image")
+        .select(
+          `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating, 
+        wishlist(
+          property
+        )
+        `
+        )
         .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
         .range(range[0], range[1]);
 
@@ -572,46 +729,6 @@ export const getPropertyDetail = async ({
       console.error(error);
       return null;
     } else return data;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
-
-export const getPropertyById = async <T>(
-  propertyIdArr: Array<T>
-): Promise<Array<PropertyReturnType> | null> => {
-  try {
-    const { data, error } = await Supabase.from("properties")
-      .select("id, name, address, price, rating, image")
-      .in("id", propertyIdArr);
-
-    if (error) {
-      console.error(error);
-      return null;
-    }
-    return data;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
-
-export const getPropertyFromId = async ({
-  propertyIdArr,
-}: {
-  propertyIdArr: Array<string>;
-}) => {
-  try {
-    const { data, error } = await Supabase.from("properties")
-      .select("id, name, image, address, price, rating")
-      .in("id", propertyIdArr);
-
-    if (error) {
-      console.error(error);
-      return null;
-    }
-    return data;
   } catch (error) {
     console.error(error);
     return null;
@@ -701,7 +818,7 @@ export const getWishlistedPropertyId = async ({
   userId,
 }: {
   userId: string | undefined;
-}): Promise<Array<{ property: string | null }> | null> => {
+}): Promise<Array<{ property: string }> | null> => {
   try {
     if (userId) {
       const { data, error } = await Supabase.from("wishlist")
@@ -1100,6 +1217,33 @@ export const getFromConversation = async <
       .select(column.join(", "))
       .eq(Object.keys(comparisionClaus)[0], Object.values(comparisionClaus)[0]);
     return data as Record<T, S>[];
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const getPorpertyWithinRadius = async ({
+  latitude,
+  longitude,
+  radius,
+}: {
+  latitude: number;
+  longitude: number;
+  radius: number;
+}): Promise<Array<PropertyWithinRadiusReturnType> | null> => {
+  try {
+    const { data, error } = await Supabase.rpc("get_properties_within_radius", {
+      lat: latitude,
+      lng: longitude,
+      radius_km: radius,
+    });
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    return data;
   } catch (error) {
     console.error(error);
     return null;
