@@ -86,9 +86,6 @@ export interface PropertyReturnType {
   name: string;
   price: number;
   rating: number;
-  wishlist: Array<{
-    property: string;
-  }>;
 }
 
 interface PropertyRef {
@@ -111,7 +108,6 @@ interface PropertyParameter {
   filter?: string;
   query?: string;
   range: Array<number>;
-  sort?: string;
   propFilter?: string;
 }
 
@@ -160,13 +156,13 @@ interface Filters {
   bedroomCount: number;
 }
 
-interface PriceRange {
+export interface PriceRange {
   property_count: number;
   range_start: number;
   range_end: number;
 }
 
-interface AreaSummary {
+export interface AreaSummary {
   max_area: number;
   min_area: number;
 }
@@ -435,38 +431,9 @@ export const getFeaturedProperties = async ({
 export const getLatestProperties = async ({
   filter,
   range,
-  sort,
 }: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
   try {
     if (filter && filter !== "All") {
-      if (sort && sort !== "null") {
-        const sortParam: Sort = JSON.parse(sort);
-        const { data: properties, error } = await Supabase.from("properties")
-          .select(
-            `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-          )
-          .eq("type", filter)
-          .order(`${Object.keys(sortParam)[0]}`, {
-            ascending: Object.values(sortParam)[0] === "ascending",
-          })
-          .range(range[0], range[1]);
-
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      }
       const { data: properties, error } = await Supabase.from("properties")
         .select(
           `
@@ -475,10 +442,7 @@ export const getLatestProperties = async ({
         image, 
         address, 
         price, 
-        rating, 
-        wishlist(
-          property
-        )
+        rating
         `
         )
         .eq("type", filter)
@@ -491,32 +455,6 @@ export const getLatestProperties = async ({
 
       return properties;
     } else {
-      if (sort && sort !== "null") {
-        const sortParam: Sort = JSON.parse(sort);
-        const { data: properties, error } = await Supabase.from("properties")
-          .select(
-            `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-          )
-          .range(range[0], range[1])
-          .order(`${Object.keys(sortParam)[0]}`, {
-            ascending: Object.values(sortParam)[0] === "ascending",
-          });
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      }
       const { data: properties, error } = await Supabase.from("properties")
         .select(
           `
@@ -525,10 +463,7 @@ export const getLatestProperties = async ({
         image, 
         address, 
         price, 
-        rating, 
-        wishlist(
-          property
-        )
+        rating
         `
         )
         .range(range[0], range[1]);
@@ -546,6 +481,51 @@ export const getLatestProperties = async ({
   }
 };
 
+const buildPropertyQuery = (filters: Filters, queryText?: string) => {
+  let query = Supabase.from("properties").select(
+    `
+      id, 
+      name, 
+      image, 
+      address, 
+      price, 
+      rating
+    `
+  );
+
+  if (filters.facilities?.length) {
+    query = query.contains("facilities", filters.facilities);
+  }
+
+  if (filters.range?.length === 2) {
+    query = query.gte("price", filters.range[0]).lte("price", filters.range[1]);
+  }
+
+  if (filters.areaRange?.length === 2) {
+    query = query
+      .gte("area", filters.areaRange[0])
+      .lte("area", filters.areaRange[1]);
+  }
+
+  if (filters.propertyType?.length) {
+    query = query.in("type", filters.propertyType);
+  }
+
+  if (typeof filters.bedroomCount === "number") {
+    query = query.eq("bedrooms", filters.bedroomCount);
+  }
+
+  if (typeof filters.bathroomCount === "number") {
+    query = query.eq("bathrooms", filters.bathroomCount);
+  }
+
+  if (queryText) {
+    query = query.or(`name.ilike.%${queryText}%,address.ilike.%${queryText}%`);
+  }
+
+  return query;
+};
+
 export const getSearchedProperties = async ({
   query,
   filter,
@@ -553,70 +533,23 @@ export const getSearchedProperties = async ({
   propFilter,
 }: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
   try {
+    // Case: Full advanced filter (propFilter via JSON)
     if (propFilter && propFilter !== "null") {
       const filters: Filters = JSON.parse(propFilter);
-      if (query) {
-        let { data: properties, error } = await Supabase.from("properties")
-          .select(
-            `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-          )
-          .contains("facilities", filters.facilities)
-          .gte("price", filters.range[0])
-          .gte("area", filters.areaRange[0])
-          .lte("price", filters.range[1])
-          .lte("area", filters.areaRange[1])
-          .in("type", filters.propertyType)
-          .eq("bathrooms", filters.bathroomCount)
-          .eq("bedrooms", filters.bedroomCount)
-          .or(`name.ilike.%${query}%, address.ilike.%${query}%`);
+      let q = buildPropertyQuery(filters, query);
+      q = q.range(range[0], range[1]);
 
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      }
-      let { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-        )
-        .contains("facilities", filters.facilities)
-        .gte("price", filters.range[0])
-        .gte("area", filters.areaRange[0])
-        .lte("price", filters.range[1])
-        .lte("area", filters.areaRange[1])
-        .in("type", filters.propertyType)
-        .eq("bathrooms", filters.bathroomCount)
-        .eq("bedrooms", filters.bedroomCount);
-
+      const { data, error } = await q;
       if (error) {
         console.error(error);
         return [];
       }
-      return properties;
+      return data;
     }
-    if (query && filter && !(filter === "All")) {
-      const { data: properties, error } = await Supabase.from("properties")
+
+    // Case: Simple category + search
+    if (query && filter && filter !== "All") {
+      const { data, error } = await Supabase.from("properties")
         .select(
           `
         id, 
@@ -624,23 +557,23 @@ export const getSearchedProperties = async ({
         image, 
         address, 
         price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
+        rating 
+      `
         )
         .eq("type", filter)
-        .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
+        .or(`name.ilike.%${query}%,address.ilike.%${query}%`)
         .range(range[0], range[1]);
 
       if (error) {
         console.error(error);
         return [];
       }
-      return properties;
-    } else if (query && (!filter || filter === "All")) {
-      const { data: properties, error } = await Supabase.from("properties")
+      return data;
+    }
+
+    // Case: Only query (no filter)
+    if (query && (!filter || filter === "All")) {
+      const { data, error } = await Supabase.from("properties")
         .select(
           `
         id, 
@@ -648,23 +581,21 @@ export const getSearchedProperties = async ({
         image, 
         address, 
         price, 
-        rating, 
-        wishlist(
-          property
+        rating
+      `
         )
-        `
-        )
-        .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
+        .or(`name.ilike.%${query}%,address.ilike.%${query}%`)
         .range(range[0], range[1]);
 
       if (error) {
         console.error(error);
         return [];
       }
-      return properties;
-    } else {
-      return [];
+      return data;
     }
+
+    // Fallback
+    return [];
   } catch (error) {
     console.error(error);
     return [];
@@ -867,6 +798,48 @@ export const updateWishlist = async ({
   }
 };
 
+const buildWishlistQuery = (
+  baseQuery: ReturnType<typeof Supabase.rpc>,
+  filters?: Filters,
+  queryText?: string
+) => {
+  let query = baseQuery;
+
+  if (!filters) return query;
+
+  if (filters.facilities?.length) {
+    query = query.contains("facilities", filters.facilities);
+  }
+
+  if (filters.range?.length === 2) {
+    query = query.gte("price", filters.range[0]).lte("price", filters.range[1]);
+  }
+
+  if (filters.areaRange?.length === 2) {
+    query = query
+      .gte("area", filters.areaRange[0])
+      .lte("area", filters.areaRange[1]);
+  }
+
+  if (filters.propertyType?.length) {
+    query = query.in("type", filters.propertyType);
+  }
+
+  if (typeof filters.bedroomCount === "number") {
+    query = query.eq("bedrooms", filters.bedroomCount);
+  }
+
+  if (typeof filters.bathroomCount === "number") {
+    query = query.eq("bathrooms", filters.bathroomCount);
+  }
+
+  if (queryText) {
+    query = query.or(`name.ilike.%${queryText}%,address.ilike.%${queryText}%`);
+  }
+
+  return query;
+};
+
 export const getWishlistProperty = async ({
   filter,
   query,
@@ -877,114 +850,45 @@ export const getWishlistProperty = async ({
   userId: string | undefined;
 }): Promise<Array<PropertyReturnType> | null> => {
   try {
+    const baseQuery = Supabase.rpc("get_user_wishlist_properties", {
+      p_user_id: userId,
+    });
+
+    let filters: Filters | undefined;
     if (propFilter && propFilter !== "null") {
-      const filters: Filters = JSON.parse(propFilter);
-      if (query) {
-        let { data: properties, error } = await Supabase.rpc(
-          "get_user_wishlist_properties",
-          {
-            p_user_id: userId,
-          }
-        )
-          .contains("facilities", filters.facilities)
-          .gte("price", filters.range[0])
-          .gte("area", filters.areaRange[0])
-          .lte("price", filters.range[1])
-          .lte("area", filters.areaRange[1])
-          .in("type", filters.propertyType)
-          .eq("bathrooms", filters.bathroomCount)
-          .eq("bedrooms", filters.bedroomCount)
-          .or(`name.ilike.%${query}%, address.ilike.%${query}%`);
-
-        if (error) {
-          console.error(error);
-          return null;
-        }
-        return properties;
-      }
-      console.log("propfilter");
-      let { data: properties, error } = await Supabase.rpc(
-        "get_user_wishlist_properties",
-        {
-          p_user_id: userId,
-        }
-      )
-        .contains("facilities", filters.facilities)
-        .gte("price", filters.range[0])
-        .gte("area", filters.areaRange[0])
-        .lte("price", filters.range[1])
-        .lte("area", filters.areaRange[1])
-        .in("type", filters.propertyType)
-        .eq("bathrooms", filters.bathroomCount)
-        .eq("bedrooms", filters.bedroomCount);
-
-      if (error) {
-        console.error(error);
-        return null;
-      }
-      return properties;
-    } else if (query && filter && !(filter === "All")) {
-      let { data: properties, error } = await Supabase.rpc(
-        "get_user_wishlist_properties",
-        {
-          p_user_id: userId,
-        }
-      )
-        .eq("type", filter)
-        .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return null;
-      }
-      return properties;
-    } else if (query && (!filter || filter === "All")) {
-      let { data: properties, error } = await Supabase.rpc(
-        "get_user_wishlist_properties",
-        {
-          p_user_id: userId,
-        }
-      )
-        .or(`name.ilike.%${query}%, address.ilike.%${query}%`)
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return null;
-      }
-      return properties;
-    } else {
-      if (filter && filter !== "All") {
-        const { data: properties, error } = await Supabase.rpc(
-          "get_user_wishlist_properties",
-          {
-            p_user_id: userId,
-          }
-        )
-          .eq("type", filter)
-          .range(range[0], range[1]);
-
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      } else {
-        const { data: properties, error } = await Supabase.rpc(
-          "get_user_wishlist_properties",
-          {
-            p_user_id: userId,
-          }
-        ).range(range[0], range[1]);
-
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      }
+      filters = JSON.parse(propFilter);
     }
+
+    let finalQuery = baseQuery;
+
+    // Apply filters if available
+    if (filters) {
+      finalQuery = buildWishlistQuery(finalQuery, filters, query);
+    }
+    // Fallbacks if no advanced filters
+    else if (query && filter && filter !== "All") {
+      finalQuery = finalQuery
+        .eq("type", filter)
+        .or(`name.ilike.%${query}%,address.ilike.%${query}%`);
+    } else if (query && (!filter || filter === "All")) {
+      finalQuery = finalQuery.or(
+        `name.ilike.%${query}%,address.ilike.%${query}%`
+      );
+    } else if (!query && filter && filter !== "All") {
+      finalQuery = finalQuery.eq("type", filter);
+    }
+
+    // Always apply range if available
+    finalQuery = finalQuery.range(range[0], range[1]);
+
+    const { data, error } = await finalQuery;
+
+    if (error) {
+      console.error(error);
+      return null;
+    }
+
+    return data ?? [];
   } catch (error) {
     console.error(error);
     return null;

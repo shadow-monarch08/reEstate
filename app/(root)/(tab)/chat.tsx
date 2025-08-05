@@ -26,7 +26,7 @@ const Chat = () => {
         ListHeaderComponentClassName="pt-7 mb-5"
         ListHeaderComponent={
           <View>
-            <View className="flex flex-row justify-between items-center">
+            <View className="flex flex-row justify-between items-center mb-7">
               <View className="flex-row flex gap-4 items-center">
                 <View className="p-2 bg-primary-300 rounded-2xl">
                   <Image

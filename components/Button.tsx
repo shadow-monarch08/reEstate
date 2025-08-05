@@ -5,9 +5,13 @@ import {
   ImageSourcePropType,
   Image,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { router } from "expo-router";
 import icons from "@/constants/icons";
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 
 export const Button = ({
   text,
@@ -54,6 +58,52 @@ export const SearchButton = ({ query }: { query: string }) => {
         </View>
         <Image source={icons.filter} className="size-5" tintColor="#8C8E98" />
       </View>
+    </TouchableOpacity>
+  );
+};
+
+export const LikeButton = ({
+  isWishlisted,
+  handleWishlist,
+  id,
+}: {
+  id: string;
+  isWishlisted: boolean | undefined;
+  handleWishlist: (id: string, operation: "insert" | "delete") => void;
+}) => {
+  const animatedHeartFilled = useAnimatedStyle(() => ({
+    transform: [{ scale: withTiming(isWishlisted ? 1 : 0, { duration: 200 }) }],
+  }));
+  const animatedHeartOutline = useAnimatedStyle(() => ({
+    transform: [
+      { scale: withTiming(!isWishlisted ? 1 : 0, { duration: 200 }) },
+    ],
+  }));
+  const [wishlisted, setWishlisted] = useState(isWishlisted);
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        handleWishlist(id, wishlisted ? "delete" : "insert");
+        setWishlisted(!wishlisted);
+      }}
+      className="relative size-6"
+    >
+      <Animated.View
+        style={animatedHeartOutline}
+        className="size-full absolute left-0 top-0 "
+      >
+        <Image tintColor="#8C8E98" className="size-full" source={icons.heart} />
+      </Animated.View>
+      <Animated.View
+        style={animatedHeartFilled}
+        className="size-full absolute left-0 top-0 "
+      >
+        <Image
+          tintColor="#F75555"
+          className="size-full"
+          source={icons.heart_filled}
+        />
+      </Animated.View>
     </TouchableOpacity>
   );
 };

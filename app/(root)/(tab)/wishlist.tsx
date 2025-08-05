@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Filters_small } from "@/components/Filters";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NoResult from "@/components/NoResult";
@@ -18,9 +18,9 @@ import Search from "@/components/Search";
 
 const Wishlist = () => {
   const [range, setRange] = useState<[number, number]>([0, 5]);
-  const [data, setData] = useState<Array<PropertyReturnType> | null>([]);
-  const [isFirstInstance, setIsFirstInstance] = useState(true);
+  // const [data, setData] = useState<Array<PropertyReturnType> | null>(null);
   const [isEnd, setIsEnd] = useState(false);
+  const dataLengthRef = useRef<number>(-1);
   const { user, setWishlistManager, wishlistManager, bottomSheetModalRef } =
     useGlobalContext();
   const [cardType, setCardType] = useState<"grid" | "list">("grid");
@@ -34,6 +34,7 @@ const Wishlist = () => {
     data: wishlistProperty,
     refetch,
     loading,
+    setData,
   } = useSupabase({
     fn: getWishlistProperty,
     params: {
@@ -44,6 +45,7 @@ const Wishlist = () => {
       userId: user?.id,
     },
     skip: true,
+    pagination: true,
   });
 
   useEffect(() => {
@@ -56,27 +58,28 @@ const Wishlist = () => {
     });
 
     return () => {
-      setIsFirstInstance(true);
       setRange([0, 5]);
+      // setData([]);
       setData([]);
       setIsEnd(false);
     };
   }, [params.filter, user, params.query, params.propFilter]);
 
   useEffect(() => {
-    if (wishlistProperty && wishlistProperty?.length < 6) {
+    if (
+      wishlistProperty &&
+      wishlistProperty?.length === dataLengthRef.current
+    ) {
       setIsEnd(true);
     }
-    if (wishlistProperty) {
-      setData((prev) => [...(prev ?? []), ...(wishlistProperty ?? [])]);
-    }
+    dataLengthRef.current = wishlistProperty?.length ?? -1;
+    // if (wishlistProperty) {
+    //   setData((prev) => [...(prev ?? []), ...(wishlistProperty ?? [])]);
+    // }
   }, [wishlistProperty]);
 
   useEffect(() => {
     if (wishlistManager.operation === "delete") {
-      if (data?.find((obj) => obj.id === wishlistManager.changeId)) {
-        setIsFirstInstance(false);
-      }
       setData(
         (prev) =>
           prev?.filter(
@@ -92,7 +95,6 @@ const Wishlist = () => {
         userId: user?.id,
       });
       setIsEnd(false);
-      setIsFirstInstance(true);
     }
   }, [wishlistManager.propertyIds]);
 
@@ -108,7 +110,6 @@ const Wishlist = () => {
       userId: user?.id,
     });
     setRange((prev) => [prev[1] + 1, prev[1] + 6]);
-    setIsFirstInstance(false);
   }, [range, isEnd, loading]);
 
   useEffect(() => {
@@ -119,33 +120,37 @@ const Wishlist = () => {
     };
   }, []);
 
-  const handleWishlist = (
-    propertyId: string,
-    operation: "insert" | "delete"
-  ) => {
-    if (operation === "insert") {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.add(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "insert",
-          changeId: propertyId,
-        };
-      });
-    } else {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.delete(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "delete",
-          changeId: propertyId,
-        };
-      });
-    }
-  };
-  const handelCardPress = (id: string) => router.push(`/properties/${id}`);
+  const handleWishlist = useCallback(
+    (propertyId: string, operation: "insert" | "delete") => {
+      if (operation === "insert") {
+        setWishlistManager((prev) => {
+          const newPropertyIds = new Set(prev.propertyIds);
+          newPropertyIds.add(propertyId);
+          return {
+            propertyIds: newPropertyIds,
+            operation: "insert",
+            changeId: propertyId,
+          };
+        });
+      } else {
+        setWishlistManager((prev) => {
+          const newPropertyIds = new Set(prev.propertyIds);
+          newPropertyIds.delete(propertyId);
+          return {
+            propertyIds: newPropertyIds,
+            operation: "delete",
+            changeId: propertyId,
+          };
+        });
+      }
+    },
+    [wishlistManager]
+  );
+
+  const handelCardPress = useCallback(
+    (id: string) => router.push(`/properties/${id}`),
+    []
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: PropertyReturnType }) =>
@@ -170,17 +175,12 @@ const Wishlist = () => {
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
       <FlatList
-        data={
-          loading && isFirstInstance
-            ? []
-            : isFirstInstance
-            ? wishlistProperty
-            : data
-        }
+        data={loading ? [] : wishlistProperty}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={cardType === "grid" ? 2 : 1}
         key={cardType}
+        onEndReachedThreshold={0.3}
         onEndReached={() => fetchMoreData()}
         contentContainerClassName="pb-24 min-h-full"
         columnWrapperClassName={
@@ -204,27 +204,30 @@ const Wishlist = () => {
           )
         }
         ListFooterComponent={
-          isEnd ? (
-            <Text className="text-black-200 font-rubik-medium text-center mt-7">
-              {data?.length ?? 0 ? "No more property! 🥹" : ""}
-            </Text>
-          ) : (
-            <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
-              {[...Array(4)].map((_, i) =>
-                cardType === "grid" ? (
-                  <LoadingColumnCard key={i} />
-                ) : (
-                  <LoadingRowCard key={i} />
-                )
-              )}
-            </View>
-          )
+          <>
+            {isEnd && (
+              <Text className="text-black-200 font-rubik-medium text-center mt-7">
+                {wishlistProperty?.length ?? 0 ? "No more property! 🥹" : ""}
+              </Text>
+            )}
+            {loading ? (
+              <View className="px-5 mt-5 flex flex-row gap-5 flex-wrap">
+                {[...Array(4)].map((_, i) =>
+                  cardType === "grid" ? (
+                    <LoadingColumnCard key={i} />
+                  ) : (
+                    <LoadingRowCard key={i} />
+                  )
+                )}
+              </View>
+            ) : null}
+          </>
         }
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View className="mb-1">
             <View className="px-5">
-              <View className="w-full mt-7 flex flex-row justify-between items-center">
+              <View className="w-full mt-7 mb-7 flex flex-row justify-between items-center">
                 <View className="flex flex-row gap-4 items-center">
                   <View className="p-2 bg-primary-300 rounded-2xl">
                     <Image

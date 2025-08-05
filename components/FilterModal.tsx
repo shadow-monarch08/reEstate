@@ -29,15 +29,30 @@ import { Button } from "./Button";
 import { router, useLocalSearchParams } from "expo-router";
 import CheckBox from "./CheckBox";
 import { useSupabase } from "@/lib/useSupabase";
-import { getReviews, ReviewReturn } from "@/lib/supabase";
+import {
+  AreaSummary,
+  getReviews,
+  PriceRange,
+  ReviewReturn,
+} from "@/lib/supabase";
 import { LoadingReviewCard, ReviewCard } from "./Card";
 import NoResult from "./NoResult";
+import { initialFilters } from "@/constants/data";
 
 interface GenericType {
   title: string;
   category: string | "ascending" | "descending";
   isSelected: boolean;
   icon: ImageSourcePropType;
+}
+
+export interface Filters {
+  range?: [number, number];
+  areaRange?: [number, number];
+  propertyType?: Array<GenericType>;
+  facilities?: Array<GenericType>;
+  bathroomCount?: number;
+  bedroomCount?: number;
 }
 
 interface PropertyTypeProps {
@@ -50,12 +65,297 @@ interface CounterButttonProps {
   handelValue: (param: number) => void;
 }
 
-interface SortType {
-  name: Array<GenericType>;
-  created_at: Array<GenericType>;
-  rating: Array<GenericType>;
-  price: Array<GenericType>;
+interface PriceSelectorProps {
+  priceRanges?: PriceRange[];
+  handleFilterChange: (values: [number, number]) => void;
+  toggleActivation: (isSelected: boolean, backup: [number, number]) => void;
 }
+
+interface PropertyTypeSelectorProps {
+  handlePress: (index: number) => void;
+  toggleActivation: (isSelected: boolean, backup: Array<GenericType>) => void;
+}
+
+interface HomeDetailProps {
+  handleFilterChange: (value: number, key: string) => void;
+  toggleActivation: (isSelected: boolean, backup: Filters) => void;
+}
+
+interface FacilitySelectorProps {
+  handlePress: (index: number) => void;
+  toggleActivation: (isSelected: boolean, backup: Array<GenericType>) => void;
+}
+
+interface AreaSliderProps {
+  areaSummery?: AreaSummary;
+  handleFilterChange: (values: [number, number]) => void;
+  toggleActivation: (isSelected: boolean, backup: [number, number]) => void;
+}
+
+const PropertyTypeSelector = React.memo(
+  ({ handlePress, toggleActivation }: PropertyTypeSelectorProps) => {
+    const [isSelected, setIsSelected] = useState(true);
+    const backupData = useRef(initialFilters.propertyType);
+    return (
+      <View className="mt-7" style={{ opacity: isSelected ? 1 : 0.5 }}>
+        <View className="flex flex-row justify-between items-center w-full">
+          <Text className="text-base font-rubik-medium text-black-300">
+            Property Type
+          </Text>
+          <CheckBox
+            onPress={() => {
+              setIsSelected(!isSelected);
+              toggleActivation(!isSelected, backupData.current!);
+            }}
+            isSelected={isSelected}
+          />
+        </View>
+        <View pointerEvents={isSelected ? "auto" : "none"}>
+          <GenericSelector_small
+            propertyType={backupData.current!}
+            handlePress={(i) => {
+              handlePress(i);
+              backupData.current = backupData.current?.map((item, index) =>
+                index === i ? { ...item, isSelected: !item.isSelected } : item
+              );
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+);
+
+const PriceRangeSlider = React.memo(
+  ({
+    priceRanges,
+    handleFilterChange,
+    toggleActivation,
+  }: PriceSelectorProps) => {
+    const [width, setWidth] = useState<number>(0);
+    const handleLayout = (event: LayoutChangeEvent) => {
+      const { width } = event.nativeEvent.layout;
+      setWidth(Math.floor(width));
+    };
+    const [isSelected, setIsSelected] = useState(false);
+    const backupData = useRef(initialFilters.range);
+    return (
+      <View className="mt-7 mb-16" style={{ opacity: isSelected ? 1 : 0.5 }}>
+        <View className="flex flex-row justify-between items-center w-full">
+          <Text className="text-base font-rubik-medium text-black-300">
+            Price Range
+          </Text>
+          <CheckBox
+            onPress={() => {
+              setIsSelected(!isSelected);
+              toggleActivation(!isSelected, backupData.current!);
+            }}
+            isSelected={isSelected}
+          />
+        </View>
+        <View
+          onLayout={handleLayout}
+          className="w-full"
+          pointerEvents={isSelected ? "auto" : "none"}
+        >
+          <Histogram data={priceRanges} />
+          <MultiSlider
+            sliderLength={width}
+            trackStyle={{ height: 4, backgroundColor: "#0061FF1A" }}
+            selectedStyle={{ backgroundColor: "#0061FF" }}
+            markerContainerStyle={{ marginTop: 1 }}
+            values={backupData.current}
+            max={priceRanges![priceRanges!.length - 1].range_start}
+            min={priceRanges![0].range_start}
+            isMarkersSeparated={true}
+            allowOverlap={true}
+            onValuesChange={(values) => {
+              handleFilterChange([values[0], values[1]]);
+              backupData.current = [values[0], values[1]];
+            }}
+            markerStyle={{
+              borderWidth: 3,
+              borderColor: "#0061FF",
+              backgroundColor: "white",
+              width: 24,
+              height: 24,
+            }}
+            containerStyle={{ height: 0 }}
+            pressedMarkerStyle={{ transform: "scale(1.4)" }}
+            step={500}
+            snapped={true}
+            enableLabel={true}
+            customLabel={(e) => <CustomLable data={e} />}
+          />
+        </View>
+      </View>
+    );
+  }
+);
+
+const HomeDetail = React.memo(
+  ({ handleFilterChange, toggleActivation }: HomeDetailProps) => {
+    const backupData = useRef({
+      bedroomCount: initialFilters.bedroomCount,
+      bathroomCount: initialFilters.bathroomCount,
+    });
+    const [isSelected, setIsSelected] = useState(false);
+    return (
+      <View className="mt-7 " style={{ opacity: isSelected ? 1 : 0.5 }}>
+        <View className="flex flex-row justify-between items-center w-full">
+          <Text className="text-base font-rubik-medium text-black-300">
+            Home Details
+          </Text>
+          <CheckBox
+            onPress={() => {
+              setIsSelected(!isSelected);
+              toggleActivation(!isSelected, backupData.current);
+            }}
+            isSelected={isSelected}
+          />
+        </View>
+        <View className="mt-4" pointerEvents={isSelected ? "auto" : "none"}>
+          <View className="flex flex-row justify-between w-full py-4">
+            <Text className="text-black-200 font-rubik-medium text-sm">
+              Bedrooms
+            </Text>
+            <CounterButton
+              value={backupData.current.bedroomCount!}
+              handelValue={(value) => {
+                handleFilterChange(
+                  backupData.current.bedroomCount! == 1 && value === -1
+                    ? 0
+                    : backupData.current.bedroomCount! + value,
+                  "bedroomCount"
+                );
+                backupData.current.bedroomCount =
+                  backupData.current.bedroomCount! == 1 && value === -1
+                    ? 0
+                    : backupData.current.bedroomCount! + value;
+              }}
+            />
+          </View>
+          <View className="flex flex-row justify-between w-full py-4 border-t-[1px] border-t-primary-100">
+            <Text className="text-black-200 font-rubik-medium text-sm">
+              Bathrooms
+            </Text>
+            <CounterButton
+              value={backupData.current.bathroomCount!}
+              handelValue={(value) => {
+                handleFilterChange(
+                  backupData.current.bathroomCount! == 1 && value === -1
+                    ? 0
+                    : backupData.current.bathroomCount! + value,
+                  "bathroomCount"
+                );
+                backupData.current.bathroomCount =
+                  backupData.current.bathroomCount! == 1 && value === -1
+                    ? 0
+                    : backupData.current.bathroomCount! + value;
+              }}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+);
+
+const FacilitySelector = React.memo(
+  ({ handlePress, toggleActivation }: FacilitySelectorProps) => {
+    const [isSelected, setIsSelected] = useState(false);
+    const backupData = useRef(initialFilters.facilities);
+    return (
+      <View className="mt-7" style={{ opacity: isSelected ? 1 : 0.5 }}>
+        <View className="flex flex-row justify-between items-center w-full">
+          <Text className="text-base font-rubik-medium text-black-300">
+            Facilities
+          </Text>
+          <CheckBox
+            onPress={() => {
+              setIsSelected(!isSelected);
+              toggleActivation(!isSelected, backupData.current!);
+            }}
+            isSelected={isSelected}
+          />
+        </View>
+        <View pointerEvents={isSelected ? "auto" : "none"}>
+          <GenericSelector_small
+            propertyType={backupData.current!}
+            handlePress={(i) => {
+              handlePress(i);
+              backupData.current = backupData.current!.map((item, index) =>
+                index === i ? { ...item, isSelected: !item.isSelected } : item
+              );
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+);
+
+const AreaSlider = React.memo(
+  ({ areaSummery, handleFilterChange, toggleActivation }: AreaSliderProps) => {
+    const [width, setWidth] = useState<number>(0);
+    const handleLayout = (event: LayoutChangeEvent) => {
+      const { width } = event.nativeEvent.layout;
+      setWidth(Math.floor(width));
+    };
+    const [isSelected, setIsSelected] = useState(false);
+    const backupData = useRef(initialFilters.areaRange);
+    return (
+      <View className="mt-7 mb-14" style={{ opacity: isSelected ? 1 : 0.5 }}>
+        <View className="flex flex-row justify-between items-center w-full">
+          <Text className="text-base font-rubik-medium text-black-300">
+            Price Range
+          </Text>
+          <CheckBox
+            onPress={() => {
+              setIsSelected(!isSelected);
+              toggleActivation(!isSelected, backupData.current!);
+            }}
+            isSelected={isSelected}
+          />
+        </View>
+        <View
+          onLayout={handleLayout}
+          className="w-full mt-7"
+          pointerEvents={isSelected ? "auto" : "none"}
+        >
+          <MultiSlider
+            sliderLength={width}
+            trackStyle={{ height: 4, backgroundColor: "#0061FF1A" }}
+            selectedStyle={{ backgroundColor: "#0061FF" }}
+            markerContainerStyle={{ marginTop: 1 }}
+            values={backupData.current}
+            max={areaSummery?.max_area}
+            min={areaSummery?.min_area}
+            isMarkersSeparated={true}
+            allowOverlap={true}
+            onValuesChange={(values) => {
+              handleFilterChange([values[0], values[1]]);
+              backupData.current = [values[0], values[1]];
+            }}
+            markerStyle={{
+              borderWidth: 3,
+              borderColor: "#0061FF",
+              backgroundColor: "white",
+              width: 24,
+              height: 24,
+            }}
+            containerStyle={{ height: 0 }}
+            pressedMarkerStyle={{ transform: "scale(1.4)" }}
+            step={500}
+            snapped={true}
+            enableLabel={true}
+            customLabel={(e) => <CustomLable data={e} />}
+          />
+        </View>
+      </View>
+    );
+  }
+);
 
 const FilterLoadingComponent = React.memo(() => {
   return (
@@ -193,127 +493,96 @@ const CustomLable2 = ({ data }: { data: LabelProps }) => {
 export const FilterModal = React.memo(() => {
   const { bottomSheetModalRef, filterDetail } = useGlobalContext();
   const [isVisible, setIsVisible] = useState(false);
-  type Filters = {
-    range: [number, number];
-    areaRange: [number, number];
-    propertyType: Array<GenericType>;
-    facilities: Array<GenericType>;
-    bathroomCount: number;
-    bedroomCount: number;
-  };
-  const initialFilters = useMemo<Filters>(
-    () => ({
-      range: [3100, 6100],
-      areaRange: [900, 2000],
-      propertyType: [
-        {
-          title: "Houses",
-          category: "House",
-          isSelected: true,
-          icon: icons.house,
-        },
-        {
-          title: "Condos",
-          category: "Condo",
-          isSelected: false,
-          icon: icons.condo,
-        },
-        {
-          title: "Duplexes",
-          category: "Duplex",
-          isSelected: false,
-          icon: icons.duplex,
-        },
-        {
-          title: "Studios",
-          category: "Studio",
-          isSelected: false,
-          icon: icons.studio,
-        },
-        {
-          title: "Villas",
-          category: "Villa",
-          isSelected: false,
-          icon: icons.villa,
-        },
-        {
-          title: "Apartments",
-          category: "Apartment",
-          isSelected: false,
-          icon: icons.apartment,
-        },
-        {
-          title: "Townhouses",
-          category: "Townhouse",
-          isSelected: false,
-          icon: icons.townhouse,
-        },
-        {
-          title: "Others",
-          category: "Other",
-          isSelected: false,
-          icon: icons.more,
-        },
-      ],
-      facilities: [
-        {
-          title: "Laundry",
-          category: "Laundry",
-          isSelected: true,
-          icon: icons.laundry,
-        },
-        {
-          title: "Parking",
-          category: "Parking",
-          isSelected: false,
-          icon: icons.car_park,
-        },
-        {
-          title: "Gym",
-          category: "Gym",
-          isSelected: false,
-          icon: icons.dumbell,
-        },
-        {
-          title: "Pet friendly",
-          category: "Pet friendly",
-          isSelected: false,
-          icon: icons.dog,
-        },
-        {
-          title: "Wi-fi",
-          category: "Wi-fi",
-          isSelected: false,
-          icon: icons.wifi,
-        },
-        {
-          title: "Swimming pool",
-          category: "Swimming pool",
-          isSelected: false,
-          icon: icons.swim,
-        },
-      ],
-      bathroomCount: 1,
-      bedroomCount: 1,
-    }),
-    []
-  );
+  const [filters, setFilters] = useState<Filters>({
+    propertyType: [
+      {
+        title: "Houses",
+        category: "House",
+        isSelected: true,
+        icon: icons.house,
+      },
+      {
+        title: "Condos",
+        category: "Condo",
+        isSelected: false,
+        icon: icons.condo,
+      },
+      {
+        title: "Duplexes",
+        category: "Duplex",
+        isSelected: false,
+        icon: icons.duplex,
+      },
+      {
+        title: "Studios",
+        category: "Studio",
+        isSelected: false,
+        icon: icons.studio,
+      },
+      {
+        title: "Villas",
+        category: "Villa",
+        isSelected: false,
+        icon: icons.villa,
+      },
+      {
+        title: "Apartments",
+        category: "Apartment",
+        isSelected: false,
+        icon: icons.apartment,
+      },
+      {
+        title: "Townhouses",
+        category: "Townhouse",
+        isSelected: false,
+        icon: icons.townhouse,
+      },
+      {
+        title: "Others",
+        category: "Other",
+        isSelected: false,
+        icon: icons.more,
+      },
+    ],
+  });
 
-  const [filters, setFilters] = useState<Filters>(initialFilters);
-  const [width, setWidth] = useState<number>(0);
   const snapPoints = useMemo(() => ["90%"], []);
 
   const handlePropertyType = (index: number) => {
     try {
       // console.log("pressed");
+      if (filters.propertyType) {
+        setFilters((prevItem) => ({
+          ...prevItem,
+          propertyType: prevItem.propertyType?.map((item, i) =>
+            i === index
+              ? {
+                  ...item,
+                  isSelected:
+                    prevItem.propertyType?.filter((obj) => obj.isSelected)
+                      .length === 1
+                      ? true
+                      : !item.isSelected,
+                }
+              : item
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleFacilities = (index: number) => {
+    try {
       setFilters((prevItem) => ({
         ...prevItem,
-        propertyType: prevItem.propertyType.map((item, i) =>
+        facilities: prevItem.facilities?.map((item, i) =>
           i === index
             ? {
                 ...item,
                 isSelected:
-                  prevItem.propertyType.filter((obj) => obj.isSelected)
+                  prevItem.facilities?.filter((obj) => obj.isSelected)
                     .length === 1
                     ? true
                     : !item.isSelected,
@@ -326,44 +595,26 @@ export const FilterModal = React.memo(() => {
     }
   };
 
-  const handleFacilities = (index: number) => {
-    try {
-      setFilters((prevItem) => ({
-        ...prevItem,
-        facilities: prevItem.facilities.map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                isSelected:
-                  prevItem.facilities.filter((obj) => obj.isSelected).length ===
-                  1
-                    ? true
-                    : !item.isSelected,
-              }
-            : item
-        ),
-      }));
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setWidth(Math.floor(width));
-  };
-
   const handleSetFilter = () => {
     try {
-      const filter = {
-        ...filters,
-        facilities: filters.facilities
-          .filter((item) => item.isSelected)
-          .map((item) => item.category),
-        propertyType: filters.propertyType
-          .filter((item) => item.isSelected)
-          .map((item) => item.category),
-      };
+      let filter = {};
+      if (filters.propertyType) {
+        filter = {
+          ...filter,
+          propertyType: filters.propertyType
+            ?.filter((item) => item.isSelected)
+            .map((item) => item.category),
+        };
+      }
+      if (filters.facilities) {
+        filter = {
+          ...filter,
+          facilities: filters.facilities
+            ?.filter((item) => item.isSelected)
+            .map((item) => item.category),
+        };
+      }
+      console.log("filter", filter);
       router.setParams({ propFilter: JSON.stringify(filter) });
       if (bottomSheetModalRef.current) {
         bottomSheetModalRef.current[0]?.dismiss();
@@ -447,132 +698,98 @@ export const FilterModal = React.memo(() => {
           className="py-2 flex-1 px-6"
           showsVerticalScrollIndicator={false}
         >
-          <Text className="text-base font-rubik-medium mt-7 text-black-300">
-            Property Type
-          </Text>
-          <GenericSelector_small
-            propertyType={filters.propertyType}
-            handlePress={(i) => handlePropertyType(i)}
-          />
-          <Text className="text-base font-rubik-medium mt-7 text-black-300">
-            Price Range
-          </Text>
-          <View onLayout={handleLayout} className="w-full">
-            <Histogram data={filterDetail?.price_ranges} />
-            <MultiSlider
-              sliderLength={width}
-              trackStyle={{ height: 4, backgroundColor: "#0061FF1A" }}
-              selectedStyle={{ backgroundColor: "#0061FF" }}
-              markerContainerStyle={{ marginTop: 1 }}
-              values={filters.range}
-              max={
-                filterDetail?.price_ranges[
-                  filterDetail?.price_ranges.length - 1
-                ].range_start
-              }
-              min={filterDetail?.price_ranges[0].range_start}
-              isMarkersSeparated={true}
-              allowOverlap={true}
-              onValuesChange={(values) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  range: [values[0], values[1]],
-                }))
-              }
-              markerStyle={{
-                borderWidth: 3,
-                borderColor: "#0061FF",
-                backgroundColor: "white",
-                width: 24,
-                height: 24,
-              }}
-              containerStyle={{ height: 0 }}
-              pressedMarkerStyle={{ transform: "scale(1.4)" }}
-              step={500}
-              snapped={true}
-              enableLabel={true}
-              customLabel={(e) => <CustomLable data={e} />}
-            />
-          </View>
-          <Text className="text-base font-rubik-medium mt-20 text-black-300">
-            Home Details
-          </Text>
-          <View className="mt-4">
-            <View className="flex flex-row justify-between w-full py-4">
-              <Text className="text-black-200 font-rubik-medium text-sm">
-                Bedrooms
-              </Text>
-              <CounterButton
-                value={filters.bedroomCount}
-                handelValue={(value) =>
-                  filters.bedroomCount === 1 && value === -1
-                    ? null
-                    : setFilters((prev) => ({
-                        ...prev,
-                        bedroomCount: prev.bedroomCount + value,
-                      }))
+          <PropertyTypeSelector
+            handlePress={handlePropertyType}
+            toggleActivation={(
+              isSelected: boolean,
+              backup: Array<GenericType>
+            ) =>
+              setFilters((prev) => {
+                const newData = prev;
+                if (isSelected) {
+                  newData.propertyType = backup;
+                } else {
+                  delete newData.propertyType;
                 }
-              />
-            </View>
-            <View className="flex flex-row justify-between w-full py-4 border-t-[1px] border-t-primary-100">
-              <Text className="text-black-200 font-rubik-medium text-sm">
-                Bathrooms
-              </Text>
-              <CounterButton
-                value={filters.bathroomCount}
-                handelValue={(value) =>
-                  filters.bathroomCount === 1 && value === -1
-                    ? null
-                    : setFilters((prev) => ({
-                        ...prev,
-                        bathroomCount: prev.bathroomCount + value,
-                      }))
-                }
-              />
-            </View>
-          </View>
-          <Text className="text-base font-rubik-medium mt-3 text-black-300">
-            Facilities
-          </Text>
-          <GenericSelector_small
-            propertyType={filters.facilities}
-            handlePress={(i) => handleFacilities(i)}
+                return newData;
+              })
+            }
           />
-          <Text className="text-base font-rubik-medium mt-7 mb-7 text-black-300">
-            Building Size
-          </Text>
-          <View onLayout={handleLayout} className="w-full mb-8">
-            <MultiSlider
-              sliderLength={width}
-              trackStyle={{ height: 4, backgroundColor: "#0061FF1A" }}
-              selectedStyle={{ backgroundColor: "#0061FF" }}
-              markerContainerStyle={{ marginTop: 1 }}
-              values={filters.areaRange}
-              max={filterDetail?.area_summary.max_area}
-              min={filterDetail?.area_summary.min_area}
-              isMarkersSeparated={true}
-              allowOverlap={true}
-              onValuesChange={(values) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  areaRange: [values[0], values[1]],
-                }))
-              }
-              markerStyle={{
-                borderWidth: 3,
-                borderColor: "#0061FF",
-                backgroundColor: "white",
-                width: 24,
-                height: 24,
-              }}
-              containerStyle={{ height: 0 }}
-              pressedMarkerStyle={{ transform: "scale(1.4)" }}
-              step={100}
-              snapped={true}
-              enableLabel={true}
-              customLabel={(e) => <CustomLable2 data={e} />}
-            />
-          </View>
+          <PriceRangeSlider
+            priceRanges={filterDetail?.price_ranges}
+            handleFilterChange={(values: [number, number]) =>
+              setFilters((prev) => ({ ...prev, range: values }))
+            }
+            toggleActivation={(
+              isSelected: boolean,
+              backup: [number, number]
+            ) => {
+              setFilters((prev) => {
+                const newData = prev;
+                if (isSelected) {
+                  newData.range = backup;
+                } else {
+                  delete newData.range;
+                }
+                return newData;
+              });
+            }}
+          />
+          <HomeDetail
+            handleFilterChange={(value: number, key: string) => {
+              setFilters((prev) => ({ ...prev, [key]: value }));
+            }}
+            toggleActivation={(isSelected: boolean, backup: Filters) => {
+              setFilters((prev) => {
+                const newData = prev;
+                if (isSelected) {
+                  newData.bedroomCount = backup.bedroomCount;
+                  newData.bathroomCount = backup.bathroomCount;
+                } else {
+                  delete newData.bedroomCount;
+                  delete newData.bathroomCount;
+                }
+                return newData;
+              });
+            }}
+          />
+          <FacilitySelector
+            handlePress={handleFacilities}
+            toggleActivation={(
+              isSelected: boolean,
+              backup: Array<GenericType>
+            ) =>
+              setFilters((prev) => {
+                const newData = prev;
+                if (isSelected) {
+                  newData.facilities = backup;
+                } else {
+                  delete newData.facilities;
+                }
+                return newData;
+              })
+            }
+          />
+          <AreaSlider
+            areaSummery={filterDetail?.area_summary}
+            handleFilterChange={(values: [number, number]) =>
+              setFilters((prev) => ({ ...prev, areaRange: values }))
+            }
+            toggleActivation={(
+              isSelected: boolean,
+              backup: [number, number]
+            ) => {
+              setFilters((prev) => {
+                const newData = prev;
+                if (isSelected) {
+                  newData.areaRange = backup;
+                } else {
+                  delete newData.areaRange;
+                }
+                return newData;
+              });
+            }}
+          />
           <Button
             text="Set Filter"
             handlePress={handleSetFilter}
@@ -583,311 +800,6 @@ export const FilterModal = React.memo(() => {
     </BottomSheetModal>
   );
 });
-
-export const SortModal = () => {
-  const snapPoints = useMemo(() => ["55%"], []);
-  const { bottomSheetModalRef } = useGlobalContext();
-  const initailSortSelected: {
-    name: boolean;
-    created_at: boolean;
-    rating: boolean;
-    price: boolean;
-  } = {
-    name: false,
-    created_at: false,
-    rating: false,
-    price: false,
-  };
-  const [sortSelected, setSortSelected] = useState<{
-    name: boolean;
-    created_at: boolean;
-    rating: boolean;
-    price: boolean;
-  }>({
-    name: false,
-    created_at: false,
-    rating: false,
-    price: false,
-  });
-  const initialSort: SortType = {
-    name: [
-      {
-        title: "A-Z",
-        category: "ascending",
-        isSelected: true,
-        icon: icons.a_z,
-      },
-      {
-        title: "Z-A",
-        category: "descending",
-        isSelected: false,
-        icon: icons.z_a,
-      },
-    ],
-    created_at: [
-      {
-        title: "Latest",
-        category: "ascending",
-        isSelected: true,
-        icon: icons.time_up,
-      },
-      {
-        title: "Oldest",
-        category: "descending",
-        isSelected: false,
-        icon: icons.time_down,
-      },
-    ],
-    rating: [
-      {
-        title: "Most rated",
-        category: "descending",
-        isSelected: true,
-        icon: icons.rating_up,
-      },
-      {
-        title: "Least rated",
-        category: "ascending",
-        isSelected: false,
-        icon: icons.rating_down,
-      },
-    ],
-    price: [
-      {
-        title: "Most expensive",
-        category: "descending",
-        isSelected: true,
-        icon: icons.price_up,
-      },
-      {
-        title: "Least expensive",
-        category: "ascending",
-        isSelected: false,
-        icon: icons.price_down,
-      },
-    ],
-  };
-  const [sort, setSort] = useState<SortType>(initialSort);
-  const backDrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        {...props}
-      />
-    ),
-    []
-  );
-  const handleReset = () => {
-    router.setParams({ sort: null });
-    setSort(initialSort);
-    setSortSelected(initailSortSelected);
-  };
-
-  const handleSort = () => {
-    const finalSort = Object.entries(sortSelected)
-      .map(([key, value]) =>
-        value
-          ? {
-              [key]: sort[key]
-                .filter((item) => item.isSelected)
-                .map((item) => item.category)[0],
-            }
-          : null
-      )
-      .filter((item) => item)[0];
-
-    router.setParams({ sort: JSON.stringify(finalSort) });
-    if (bottomSheetModalRef.current) {
-      bottomSheetModalRef?.current[1]?.close();
-    }
-  };
-
-  const handleModalClose = useCallback(() => {
-    if (bottomSheetModalRef.current) {
-      bottomSheetModalRef?.current[1]?.close();
-    }
-  }, []);
-  return (
-    <BottomSheetModal
-      snapPoints={snapPoints}
-      backdropComponent={backDrop}
-      style={styles.shadowBox}
-      ref={(el) => (bottomSheetModalRef.current[1] = el)}
-      handleIndicatorStyle={{ display: "none" }}
-      enableDynamicSizing={false}
-    >
-      <BottomSheetView className="px-5 pb-4">
-        <View className="flex flex-row justify-between items-center w-full">
-          <TouchableOpacity
-            className="p-2 bg-primary-200 rounded-full"
-            activeOpacity={0.6}
-            onPress={handleModalClose}
-          >
-            <Image source={icons.back_arrow} className="size-6" />
-          </TouchableOpacity>
-          <Text className="font-rubik-medium text-lg text-black-300">
-            Sort by
-          </Text>
-          <TouchableOpacity onPress={handleReset}>
-            <Text className="font-rubik-medium text-base mt-1 text-primary-300">
-              Reset
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </BottomSheetView>
-      <BottomSheetScrollView
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ opacity: sortSelected.name ? 1 : 0.6 }}>
-          <View className="flex flex-row gap-3 items-center">
-            <CheckBox
-              onPress={() =>
-                setSortSelected((prev) => ({
-                  name: !prev.name,
-                  created_at: false,
-                  rating: false,
-                  price: false,
-                }))
-              }
-              isSelected={sortSelected.name}
-            />
-            <Text className="text-black-300 font-rubik-medium mt-0.5">
-              Sort name
-            </Text>
-          </View>
-          <GenericSelector_small
-            propertyType={sort.name}
-            handlePress={() => {
-              sortSelected.name
-                ? setSort((prev) => ({
-                    ...prev,
-                    name: prev.name.map((item) => ({
-                      ...item,
-                      isSelected: !item.isSelected,
-                    })),
-                  }))
-                : null;
-            }}
-          />
-        </View>
-        <View
-          className="mt-7"
-          style={{ opacity: sortSelected.created_at ? 1 : 0.6 }}
-        >
-          <View className="flex flex-row gap-3 items-center">
-            <CheckBox
-              onPress={() =>
-                setSortSelected((prev) => ({
-                  name: false,
-                  created_at: !prev.created_at,
-                  rating: false,
-                  price: false,
-                }))
-              }
-              isSelected={sortSelected.created_at}
-            />
-            <Text className="text-black-300 font-rubik-medium mt-0.5">
-              Sort uploaded date
-            </Text>
-          </View>
-          <GenericSelector_small
-            propertyType={sort.created_at}
-            handlePress={() => {
-              sortSelected.created_at
-                ? setSort((prev) => ({
-                    ...prev,
-                    created_at: prev.created_at.map((item) => ({
-                      ...item,
-                      isSelected: !item.isSelected,
-                    })),
-                  }))
-                : null;
-            }}
-          />
-        </View>
-        <View
-          className="mt-7"
-          style={{ opacity: sortSelected.rating ? 1 : 0.6 }}
-        >
-          <View className="flex flex-row gap-3 items-center">
-            <CheckBox
-              onPress={() =>
-                setSortSelected((prev) => ({
-                  name: false,
-                  created_at: false,
-                  rating: !prev.rating,
-                  price: false,
-                }))
-              }
-              isSelected={sortSelected.rating}
-            />
-            <Text className="text-black-300 font-rubik-medium mt-0.5">
-              Sort rating
-            </Text>
-          </View>
-          <GenericSelector_small
-            propertyType={sort.rating}
-            handlePress={() => {
-              sortSelected.rating
-                ? setSort((prev) => ({
-                    ...prev,
-                    rating: prev.rating.map((item) => ({
-                      ...item,
-                      isSelected: !item.isSelected,
-                    })),
-                  }))
-                : null;
-            }}
-          />
-        </View>
-        <View
-          className="mt-7"
-          style={{ opacity: sortSelected.price ? 1 : 0.6 }}
-        >
-          <View className="flex flex-row gap-3 items-center">
-            <CheckBox
-              onPress={() =>
-                setSortSelected((prev) => ({
-                  name: false,
-                  created_at: false,
-                  rating: false,
-                  price: !prev.price,
-                }))
-              }
-              isSelected={sortSelected.price}
-            />
-            <Text className="text-black-300 font-rubik-medium mt-0.5">
-              Sort price
-            </Text>
-          </View>
-          <GenericSelector_small
-            propertyType={sort.price}
-            handlePress={() => {
-              sortSelected.price
-                ? setSort((prev) => ({
-                    ...prev,
-                    price: prev.price.map((item) => ({
-                      ...item,
-                      isSelected: !item.isSelected,
-                    })),
-                  }))
-                : null;
-            }}
-          />
-        </View>
-        <View className="px-5 flex-1">
-          <Button
-            text="Apply Sort"
-            buttonStyle="my-7"
-            handlePress={handleSort}
-          />
-        </View>
-      </BottomSheetScrollView>
-    </BottomSheetModal>
-  );
-};
 
 export const ReviewModal = () => {
   const snapPoints = useMemo(() => ["95%"], []);
@@ -967,7 +879,9 @@ export const ReviewModal = () => {
   }, [moreReview]);
 
   const handleModalClose = useCallback(() => {
-    bottomSheetModalRef?.current[2]?.dismiss();
+    if (bottomSheetModalRef.current) {
+      bottomSheetModalRef?.current[2]?.dismiss();
+    }
   }, []);
 
   const fetchMoreData = useCallback(() => {
@@ -1004,7 +918,11 @@ export const ReviewModal = () => {
   return (
     <BottomSheetModal
       snapPoints={snapPoints}
-      ref={(el) => (bottomSheetModalRef.current[2] = el)}
+      ref={(el) => {
+        if (bottomSheetModalRef.current) {
+          bottomSheetModalRef.current[2] = el;
+        }
+      }}
       style={styles.shadowBox}
       backdropComponent={backDrop}
       handleIndicatorStyle={{ display: "none" }}
@@ -1050,7 +968,6 @@ export const ReviewModal = () => {
                   isSelected: !item.isSelected,
                 }))
               );
-              setFilter(availableSorts[index].category);
             }}
           />
         }

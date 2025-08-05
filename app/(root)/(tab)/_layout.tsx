@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     borderColor: "#0061FF1A",
     height: 60,
     position: "absolute",
-    bottom: 15,
+    bottom: 10,
     marginLeft: 40,
     marginRight: 40,
     elevation: 6,

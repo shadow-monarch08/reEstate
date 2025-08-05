@@ -1,6 +1,7 @@
 import { ImageSourcePropType } from "react-native";
 import icons from "./icons";
 import images from "./images";
+import { Filters } from "@/components/FilterModal";
 
 export const cards = [
   {
@@ -81,6 +82,101 @@ export const areaRange = [
   { title: "100 km", value: 100, icon: icons.location_marker },
 ];
 
+export const initialFilters: Filters = {
+  range: [3100, 6100],
+  areaRange: [900, 2000],
+  propertyType: [
+    {
+      title: "Houses",
+      category: "House",
+      isSelected: true,
+      icon: icons.house,
+    },
+    {
+      title: "Condos",
+      category: "Condo",
+      isSelected: false,
+      icon: icons.condo,
+    },
+    {
+      title: "Duplexes",
+      category: "Duplex",
+      isSelected: false,
+      icon: icons.duplex,
+    },
+    {
+      title: "Studios",
+      category: "Studio",
+      isSelected: false,
+      icon: icons.studio,
+    },
+    {
+      title: "Villas",
+      category: "Villa",
+      isSelected: false,
+      icon: icons.villa,
+    },
+    {
+      title: "Apartments",
+      category: "Apartment",
+      isSelected: false,
+      icon: icons.apartment,
+    },
+    {
+      title: "Townhouses",
+      category: "Townhouse",
+      isSelected: false,
+      icon: icons.townhouse,
+    },
+    {
+      title: "Others",
+      category: "Other",
+      isSelected: false,
+      icon: icons.more,
+    },
+  ],
+  facilities: [
+    {
+      title: "Laundry",
+      category: "Laundry",
+      isSelected: true,
+      icon: icons.laundry,
+    },
+    {
+      title: "Parking",
+      category: "Parking",
+      isSelected: false,
+      icon: icons.car_park,
+    },
+    {
+      title: "Gym",
+      category: "Gym",
+      isSelected: false,
+      icon: icons.dumbell,
+    },
+    {
+      title: "Pet friendly",
+      category: "Pet friendly",
+      isSelected: false,
+      icon: icons.dog,
+    },
+    {
+      title: "Wi-fi",
+      category: "Wi-fi",
+      isSelected: false,
+      icon: icons.wifi,
+    },
+    {
+      title: "Swimming pool",
+      category: "Swimming pool",
+      isSelected: false,
+      icon: icons.swim,
+    },
+  ],
+  bathroomCount: 1,
+  bedroomCount: 1,
+};
+
 export const settings = [
   {
     title: "My Bookings",
@@ -123,7 +219,7 @@ export const facilities: Array<{ title: string; icon: ImageSourcePropType }> = [
   },
   {
     title: "Parking",
-    icon: icons.carPark,
+    icon: icons.car_park,
   },
   {
     title: "Sports Center",

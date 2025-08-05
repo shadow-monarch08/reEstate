@@ -55,9 +55,9 @@ const Explore = () => {
   };
 
   const params = useLocalSearchParams<{
-    filter: string;
     query: string;
     propFilter: string;
+    filter: string;
   }>();
 
   const { data, loading, refetch } = useSupabase({
@@ -99,7 +99,7 @@ const Explore = () => {
       setProperties([]);
       setIsEnd(false);
     };
-  }, [params.filter, params.query, params.propFilter]);
+  }, [params.query, params.propFilter]);
 
   useEffect(() => {
     if (data && data?.length < 6) {
@@ -206,38 +206,20 @@ const Explore = () => {
         key={cardType}
         ListHeaderComponent={
           <View className="mb-5">
-            <View className="px-5">
-              <View className="w-full flex flex-row justify-between items-center">
-                <TouchableOpacity
-                  className="p-3 rounded-full bg-primary-200"
-                  onPress={() => router.back()}
-                >
-                  <Image
-                    source={icons.back_arrow}
-                    className="size-7"
-                    tintColor={"#191D31"}
-                  />
-                </TouchableOpacity>
-                <Text className="text-base font-rubik-medium text-black-300 mt-0.5">
-                  Search for Your Ideal Home
-                </Text>
-                <TouchableOpacity>
-                  <Image
-                    source={icons.bell}
-                    resizeMode="contain"
-                    className="size-7"
-                  />
-                </TouchableOpacity>
-              </View>
+            <View className="w-full px-5 flex gap-2 flex-row items-center">
+              <TouchableOpacity className="p-2" onPress={() => router.back()}>
+                <Image
+                  source={icons.back_arrow}
+                  className="size-7"
+                  tintColor={"#191D31"}
+                />
+              </TouchableOpacity>
               <Search enableFocus={false} />
             </View>
             <Filters_small />
             <View className="px-5 mt-5 flex flex-row justify-between items-center">
               <Text className="font-rubik-medium text-xl text-black-300">
-                Found {properties?.length}{" "}
-                {!params.filter || params.filter === "All"
-                  ? "Results"
-                  : params.filter + "s"}
+                Found {properties?.length} Results
               </Text>
               <View className="flex flex-row gap-4">
                 <TouchableOpacity onPress={() => setCardType("grid")}>

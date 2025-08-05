@@ -44,10 +44,12 @@ const Search = ({
     debounceSearch(text);
   };
   const handlePresentModalPress = useCallback(() => {
-    bottomSheetModalRef.current[0]?.present();
+    if (bottomSheetModalRef.current) {
+      bottomSheetModalRef.current[0]?.present();
+    }
   }, []);
   return (
-    <View className="w-full mt-6">
+    <View className="flex-1">
       <View className="flex flex-row bg-primary-100 px-3 py-4 rounded-2xl">
         <View className="flex flex-row flex-1 gap-5">
           <Image

@@ -11,6 +11,7 @@ import { ChatOverviewReturnType, PropertyReturnType } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useGlobalContext } from "@/lib/global-provider";
 import { timeSince, formatTimestamp } from "@/utils";
+import { LikeButton } from "./Button";
 
 export interface Props {
   onPress?: () => void;
@@ -26,52 +27,6 @@ interface reviewProps {
   review?: string;
   created_at: string;
 }
-
-const LikeButton = ({
-  isWishlisted,
-  handleWishlist,
-  id,
-}: {
-  id: string;
-  isWishlisted: boolean | undefined;
-  handleWishlist: (id: string, operation: "insert" | "delete") => void;
-}) => {
-  const animatedHeartFilled = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(isWishlisted ? 1 : 0, { duration: 200 }) }],
-  }));
-  const animatedHeartOutline = useAnimatedStyle(() => ({
-    transform: [
-      { scale: withTiming(!isWishlisted ? 1 : 0, { duration: 200 }) },
-    ],
-  }));
-  const [wishlisted, setWishlisted] = useState(isWishlisted);
-  return (
-    <TouchableOpacity
-      onPress={() => {
-        handleWishlist(id, wishlisted ? "delete" : "insert");
-        setWishlisted(!wishlisted);
-      }}
-      className="relative size-6"
-    >
-      <Animated.View
-        style={animatedHeartOutline}
-        className="size-full absolute left-0 top-0 "
-      >
-        <Image tintColor="#8C8E98" className="size-full" source={icons.heart} />
-      </Animated.View>
-      <Animated.View
-        style={animatedHeartFilled}
-        className="size-full absolute left-0 top-0 "
-      >
-        <Image
-          tintColor="#F75555"
-          className="size-full"
-          source={icons.heart_filled}
-        />
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
 
 export const LoadingFeaturedCard = () => {
   return (
