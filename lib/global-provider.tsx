@@ -25,7 +25,7 @@ import {
   updateWishlist,
 } from "./supabase";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { PostgrestError, RealtimeChannel } from "@supabase/supabase-js";
 import {
   getAllChatOverviews,
   getChatOverviews,
@@ -62,7 +62,10 @@ interface GlobalContextType {
   loading: boolean;
   refetch: (newParams: Record<string, ParamValue>) => Promise<void>;
   bottomSheetModalRef: React.RefObject<(BottomSheetModal | null)[]>;
-  filterDetail: FilterDetailReturnType | null;
+  filterDetail: {
+    data: FilterDetailReturnType | null;
+    error: PostgrestError | null;
+  } | null;
   wishlistManager: wishlistManagerType;
   setWishlistManager: React.Dispatch<React.SetStateAction<wishlistManagerType>>;
   chatOverviewManager: Map<string, ChatOverviewReturnType>;
@@ -197,10 +200,12 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
   }, [wishlistManager.propertyIds]);
 
   useEffect(() => {
-    if (wishlists) {
+    if (wishlists?.data) {
       setWishlistManager((prev) => ({
         ...prev,
-        propertyIds: new Set(wishlists.map((wishlist) => wishlist.property)),
+        propertyIds: new Set(
+          wishlists.data?.map((wishlist) => wishlist.property)
+        ),
       }));
     }
   }, [wishlists]);

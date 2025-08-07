@@ -237,8 +237,8 @@ const Map = () => {
 
   const handleMarkerPress = (propertyId: string) => {
     if (property) {
-      const index = property.findIndex((p) => p.id === propertyId);
-      if (index !== -1 && flatListRef.current) {
+      const index = property.data?.findIndex((p) => p.id === propertyId);
+      if (index !== -1 && flatListRef.current && index) {
         flatListRef.current?.scrollToIndex({ index, animated: true });
       }
     }
@@ -265,7 +265,7 @@ const Map = () => {
             onMapLoaded={() => setHasMapLoaded(true)}
           >
             <CustomUserMarker userRegion={userRegion} />
-            {property?.map((propertyDetail) => (
+            {property?.data?.map((propertyDetail) => (
               <CustomPropertyMarker
                 onPress={handleMarkerPress}
                 key={propertyDetail.id}
@@ -276,7 +276,7 @@ const Map = () => {
         )}
         <FlatList
           ref={flatListRef}
-          data={loading ? [] : property}
+          data={loading ? [] : property?.data}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={{ width: width }}>

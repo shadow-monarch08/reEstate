@@ -311,6 +311,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
 //   price: 7780,
 //   rating: 1,
 // };
+
 export const getFeaturedProperties = async ({
   filter,
   sort,
@@ -319,165 +320,109 @@ export const getFeaturedProperties = async ({
   filter: string;
   sort?: string;
   range: Array<number | number>;
-}): Promise<Array<PropertyReturnType> | [] | null> => {
+}): Promise<{
+  data: Array<PropertyReturnType> | null;
+  error: PostgrestError | null;
+}> => {
   try {
+    let query = Supabase.from("properties").select(
+      `
+      id, 
+      name, 
+      image, 
+      address, 
+      price, 
+      rating, 
+      wishlist(
+        property
+      )
+    `
+    );
+
+    // Apply filter
     if (filter && filter !== "All") {
-      if (sort && sort !== "null") {
-        const sortParam: Sort = JSON.parse(sort);
-        const { data: properties, error } = await Supabase.from("properties")
-          .select(
-            `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-          )
-          .eq("type", filter)
-          .order(`${Object.keys(sortParam)[0]}`, {
-            ascending: Object.values(sortParam)[0] === "ascending",
-          })
-          .range(range[0], range[1]);
-
-        if (error) {
-          console.error(error);
-          return [];
-        }
-        return properties;
-      }
-      const { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-        )
-        .eq("type", filter)
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-      return properties;
-    } else if (sort && sort !== "null") {
-      const sortParam: Sort = JSON.parse(sort);
-      const { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-        )
-        .order(`${Object.keys(sortParam)[0]}`, {
-          ascending: Object.values(sortParam)[0] === "ascending",
-        })
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-      return properties;
-    } else {
-      const { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating, 
-        wishlist(
-          property
-        )
-        `
-        )
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-
-      return properties;
+      query = query.eq("type", filter);
     }
-  } catch (error) {
-    console.error(error);
-    return [];
+
+    // Apply sort if provided
+    if (sort && sort !== "null") {
+      const sortParam: Sort = JSON.parse(sort);
+      const sortKey = Object.keys(sortParam)[0];
+      const sortOrder = Object.values(sortParam)[0] === "ascending";
+      query = query.order(sortKey, { ascending: sortOrder });
+    }
+
+    // Apply range
+    query = query.range(range[0], range[1]);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(error);
+      return {
+        data: null,
+        error,
+      };
+    }
+
+    return {
+      data: data ?? [],
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
 export const getLatestProperties = async ({
   filter,
   range,
-}: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
+}: PropertyParameter): Promise<{
+  data: Array<PropertyReturnType> | null;
+  error: PostgrestError | null;
+}> => {
   try {
+    const query = Supabase.from("properties")
+      .select(
+        `
+        id, 
+        name, 
+        image, 
+        address, 
+        price, 
+        rating
+        `
+      )
+      .range(range[0], range[1]);
+
     if (filter && filter !== "All") {
-      const { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating
-        `
-        )
-        .eq("type", filter)
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-
-      return properties;
-    } else {
-      const { data: properties, error } = await Supabase.from("properties")
-        .select(
-          `
-        id, 
-        name, 
-        image, 
-        address, 
-        price, 
-        rating
-        `
-        )
-        .range(range[0], range[1]);
-
-      if (error) {
-        console.error(error);
-        return [];
-      }
-
-      return properties;
+      query.eq("type", filter);
     }
-  } catch (error) {
-    console.error(error);
-    return [];
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(error);
+      return {
+        data: null,
+        error,
+      };
+    }
+
+    return {
+      data: data ?? [],
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
@@ -490,7 +435,10 @@ const buildPropertyQuery = (filters: Filters, queryText?: string) => {
       address, 
       price, 
       rating
-    `
+    `,
+    {
+      count: "exact",
+    }
   );
 
   if (filters.facilities?.length) {
@@ -531,7 +479,14 @@ export const getSearchedProperties = async ({
   filter,
   range,
   propFilter,
-}: PropertyParameter): Promise<Array<PropertyReturnType> | [] | null> => {
+}: PropertyParameter): Promise<
+  | {
+      data: Array<PropertyReturnType>;
+      count: number | null;
+      error: PostgrestError | null;
+    }
+  | { data: []; count: 0; error: PostgrestError | null }
+> => {
   try {
     // Case: Full advanced filter (propFilter via JSON)
     if (propFilter && propFilter !== "null") {
@@ -539,17 +494,27 @@ export const getSearchedProperties = async ({
       let q = buildPropertyQuery(filters, query);
       q = q.range(range[0], range[1]);
 
-      const { data, error } = await q;
+      const { data, error, count } = await q;
       if (error) {
-        console.error(error);
-        return [];
+        if (error.code !== "PGRST103") {
+          console.error(error);
+        }
+        return {
+          data: [],
+          count: 0,
+          error: error,
+        };
       }
-      return data;
+      return {
+        data,
+        count,
+        error: null,
+      };
     }
 
     // Case: Simple category + search
     if (query && filter && filter !== "All") {
-      const { data, error } = await Supabase.from("properties")
+      const { data, error, count } = await Supabase.from("properties")
         .select(
           `
         id, 
@@ -558,22 +523,31 @@ export const getSearchedProperties = async ({
         address, 
         price, 
         rating 
-      `
+      `,
+          {
+            count: "exact",
+          }
         )
         .eq("type", filter)
         .or(`name.ilike.%${query}%,address.ilike.%${query}%`)
         .range(range[0], range[1]);
 
       if (error) {
-        console.error(error);
-        return [];
+        if (error.code !== "PGRST103") {
+          console.error(error);
+        }
+        return {
+          data: [],
+          count: 0,
+          error: error,
+        };
       }
-      return data;
+      return { data, count, error: null };
     }
 
     // Case: Only query (no filter)
     if (query && (!filter || filter === "All")) {
-      const { data, error } = await Supabase.from("properties")
+      const { data, error, count } = await Supabase.from("properties")
         .select(
           `
         id, 
@@ -582,23 +556,44 @@ export const getSearchedProperties = async ({
         address, 
         price, 
         rating
-      `
+      `,
+          {
+            count: "exact",
+          }
         )
         .or(`name.ilike.%${query}%,address.ilike.%${query}%`)
         .range(range[0], range[1]);
 
       if (error) {
-        console.error(error);
-        return [];
+        if (error.code !== "PGRST103") {
+          console.error(error);
+        }
+        return {
+          data: [],
+          count: 0,
+          error: error,
+        };
       }
-      return data;
+      return {
+        data,
+        count,
+        error: null,
+      };
     }
 
     // Fallback
-    return [];
+    return {
+      data: [],
+      count: 0,
+      error: null,
+    };
   } catch (error) {
     console.error(error);
-    return [];
+    return {
+      data: [],
+      count: 0,
+      error: error as PostgrestError,
+    };
   }
 };
 
@@ -650,19 +645,33 @@ export const getPropertyDetail = async ({
   property_id,
 }: {
   property_id: string;
-}): Promise<propertyOverviewReturnType | null> => {
+}): Promise<{
+  data: propertyOverviewReturnType | null;
+  error: PostgrestError | null;
+}> => {
   try {
-    let { data, error } = await Supabase.rpc("get_property_overview", {
+    const { data, error } = await Supabase.rpc("get_property_overview", {
       property_id,
     });
-    // console.log(data)
+
     if (error) {
       console.error(error);
-      return null;
-    } else return data;
-  } catch (error) {
-    console.error(error);
-    return null;
+      return {
+        data: null,
+        error,
+      };
+    }
+
+    return {
+      data,
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
@@ -689,21 +698,33 @@ export const getPropertyDetail = async ({
 //     { property_count: 2, range_end: 10400, range_start: 9900 },
 //   ],
 // };
-export const getFilterDetail =
-  async (): Promise<FilterDetailReturnType | null> => {
-    try {
-      let { data, error } = await Supabase.rpc("get_property_price_histogram");
-      if (error) {
-        console.error(error);
-        return null;
-      } else {
-        return data;
-      }
-    } catch (error) {
+export const getFilterDetail = async (): Promise<{
+  data: FilterDetailReturnType | null;
+  error: PostgrestError | null;
+}> => {
+  try {
+    const { data, error } = await Supabase.rpc("get_property_price_histogram");
+
+    if (error) {
       console.error(error);
-      return null;
+      return {
+        data: null,
+        error,
+      };
     }
-  };
+
+    return {
+      data,
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
+  }
+};
 
 // const samapleData = {
 //   avatar:
@@ -715,6 +736,7 @@ export const getFilterDetail =
 //   rating: 1,
 //   review: "This is a review for Property 1 by Reviewer 1-1.",
 // };
+
 export const getReviews = async ({
   propertyId,
   filter,
@@ -723,7 +745,10 @@ export const getReviews = async ({
   propertyId: string;
   filter: "ascending" | "descending";
   range: Array<number | number>;
-}): Promise<Array<ReviewReturn> | null | []> => {
+}): Promise<{
+  data: Array<ReviewReturn> | null;
+  error: PostgrestError | null;
+}> => {
   try {
     if (propertyId) {
       const { data, error } = await Supabase.from("reviews")
@@ -734,14 +759,28 @@ export const getReviews = async ({
 
       if (error) {
         console.error(error);
-        return [];
+        return {
+          data: null,
+          error,
+        };
       }
-      return data;
+
+      return {
+        data,
+        error: null,
+      };
     }
-    return null;
-  } catch (error) {
-    console.error(error);
-    return [];
+
+    return {
+      data: null,
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
@@ -749,22 +788,40 @@ export const getWishlistedPropertyId = async ({
   userId,
 }: {
   userId: string | undefined;
-}): Promise<Array<{ property: string }> | null> => {
+}): Promise<{
+  data: Array<{ property: string }> | null;
+  error: PostgrestError | null;
+}> => {
   try {
     if (userId) {
       const { data, error } = await Supabase.from("wishlist")
         .select("property")
         .eq("user", userId);
+
       if (error) {
         console.error(error);
-        return null;
+        return {
+          data: null,
+          error,
+        };
       }
-      return data;
+
+      return {
+        data,
+        error: null,
+      };
     }
-    return null;
-  } catch (error) {
-    console.error(error);
-    return null;
+
+    return {
+      data: null,
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
@@ -848,7 +905,10 @@ export const getWishlistProperty = async ({
   userId,
 }: PropertyParameter & {
   userId: string | undefined;
-}): Promise<Array<PropertyReturnType> | null> => {
+}): Promise<{
+  data: Array<PropertyReturnType> | null;
+  error: PostgrestError | null;
+}> => {
   try {
     const baseQuery = Supabase.rpc("get_user_wishlist_properties", {
       p_user_id: userId,
@@ -864,9 +924,7 @@ export const getWishlistProperty = async ({
     // Apply filters if available
     if (filters) {
       finalQuery = buildWishlistQuery(finalQuery, filters, query);
-    }
-    // Fallbacks if no advanced filters
-    else if (query && filter && filter !== "All") {
+    } else if (query && filter && filter !== "All") {
       finalQuery = finalQuery
         .eq("type", filter)
         .or(`name.ilike.%${query}%,address.ilike.%${query}%`);
@@ -878,43 +936,31 @@ export const getWishlistProperty = async ({
       finalQuery = finalQuery.eq("type", filter);
     }
 
-    // Always apply range if available
+    // Always apply range
     finalQuery = finalQuery.range(range[0], range[1]);
 
     const { data, error } = await finalQuery;
 
     if (error) {
-      console.error(error);
-      return null;
-    }
-
-    return data ?? [];
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
-
-export const getConverationIds = async ({
-  userId,
-}: {
-  userId: string | undefined;
-}): Promise<Array<{ id: string }> | null> => {
-  try {
-    if (userId) {
-      const { data, error } = await Supabase.from("conversations")
-        .select("id")
-        .eq("user", userId);
-      if (error) {
+      if (error.code !== "PGRST103") {
         console.error(error);
-        return null;
       }
-      return data;
+      return {
+        data: null,
+        error,
+      };
     }
-    return null;
-  } catch (error) {
-    console.error(error);
-    return null;
+
+    return {
+      data: data ?? [],
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };
 
@@ -952,34 +998,6 @@ export const getConversationUnreceivedMessages = async ({
       return null;
     }
     return data;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
-
-export const getCompleteChat = async ({
-  conversation_id,
-  agent_id,
-}: {
-  conversation_id: string | undefined;
-  agent_id: string | undefined;
-}): Promise<Array<ChatReturnType> | null> => {
-  try {
-    if (conversation_id) {
-      const { data, error } = await Supabase.from("messages")
-        .select("*")
-        .eq("conversation_id", conversation_id)
-        .or(`sender_id.eq.${agent_id}, receiver_id.eq.${agent_id}`)
-        .order("created_at", { ascending: true });
-      if (error) {
-        console.error(error);
-        return null;
-      }
-
-      return data.reverse();
-    }
-    return null;
   } catch (error) {
     console.error(error);
     return null;
@@ -1135,7 +1153,10 @@ export const getPorpertyWithinRadius = async ({
   latitude: number;
   longitude: number;
   radius: number;
-}): Promise<Array<PropertyWithinRadiusReturnType> | null> => {
+}): Promise<{
+  data: Array<PropertyWithinRadiusReturnType> | null;
+  error: PostgrestError | null;
+}> => {
   try {
     const { data, error } = await Supabase.rpc("get_properties_within_radius", {
       lat: latitude,
@@ -1145,11 +1166,21 @@ export const getPorpertyWithinRadius = async ({
 
     if (error) {
       console.error(error);
-      return null;
+      return {
+        data: null,
+        error,
+      };
     }
-    return data;
-  } catch (error) {
-    console.error(error);
-    return null;
+
+    return {
+      data: data ?? [],
+      error: null,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      data: null,
+      error: err as PostgrestError,
+    };
   }
 };

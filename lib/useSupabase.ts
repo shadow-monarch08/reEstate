@@ -25,8 +25,12 @@ interface UseSupabaseReturn<T, P> {
   data: T | null;
   setData: Dispatch<SetStateAction<T | null>>;
   loading: boolean;
+  loadingMore: boolean;
   error: string | null;
   refetch: (newParams: P) => Promise<void>;
+  fetchMore: (nextParams: P) => Promise<void>;
+  hasMore: boolean;
+  count?: number | null; // Added count to return type
 }
 
 export const useSupabase = <T, P extends Record<string, ParamValue>>({
@@ -37,33 +41,69 @@ export const useSupabase = <T, P extends Record<string, ParamValue>>({
 }: UseSupabaseOptions<T, P>): UseSupabaseReturn<T, P> => {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(!skip);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [count, setCount] = useState<number | null>(null); // <-- count added
 
   const fetchData = useCallback(
-    async (fetchParams: P) => {
-      setLoading(true);
+    async (fetchParams: P, append = false) => {
+      setLoading(!append);
+      setLoadingMore(append);
       setError(null);
 
       try {
         const result = await fn(fetchParams);
-        if (pagination && Array.isArray(data) && Array.isArray(result)) {
-          setData(
-            (prev) =>
-              [...((prev as T[]) ?? []), ...((result as T[]) ?? [])] as T
+
+        if (pagination) {
+          const resultTyped = result as {
+            data: T[] | null;
+            error: any;
+            count?: number | null;
+          };
+
+          const resultData = resultTyped.data ?? [];
+
+          if (!Array.isArray(resultData)) {
+            setError("Invalid data format");
+            return;
+          }
+
+          if (resultData.length < 20) {
+            setHasMore(false);
+          }
+
+          if (typeof resultTyped.count === "number") {
+            setCount(resultTyped.count);
+          }
+
+          setData((prev) =>
+            append
+              ? ({
+                  data: [
+                    ...(Array.isArray((prev as any)?.data)
+                      ? (prev as any).data
+                      : []),
+                    ...resultData,
+                  ],
+                } as T)
+              : ({ data: resultData } as T)
           );
         } else {
-          setData(result);
+          // Non-paginated response assumed to be T
+          setData(result as T);
         }
       } catch (err: unknown) {
-        const errorMessage =
+        const message =
           err instanceof Error ? err.message : "An unknown error occurred";
-        setError(errorMessage);
-        Alert.alert("Error", errorMessage);
+        setError(message);
+        Alert.alert("Error", message);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     },
-    [fn]
+    [fn, pagination]
   );
 
   useEffect(() => {
@@ -72,7 +112,26 @@ export const useSupabase = <T, P extends Record<string, ParamValue>>({
     }
   }, []);
 
-  const refetch = async (newParams: P) => await fetchData(newParams);
+  const refetch = async (newParams: P) => {
+    setHasMore(true);
+    await fetchData(newParams);
+  };
 
-  return { data, setData, loading, error, refetch };
+  const fetchMore = async (nextParams: P) => {
+    if (!loadingMore && !loading && hasMore) {
+      await fetchData(nextParams, true);
+    }
+  };
+
+  return {
+    data,
+    setData,
+    loading,
+    loadingMore,
+    error,
+    refetch,
+    fetchMore,
+    hasMore,
+    count, // <-- count returned
+  };
 };

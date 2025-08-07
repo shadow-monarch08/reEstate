@@ -68,32 +68,32 @@ interface CounterButttonProps {
 interface PriceSelectorProps {
   priceRanges?: PriceRange[];
   handleFilterChange: (values: [number, number]) => void;
-  toggleActivation: (isSelected: boolean, backup: [number, number]) => void;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }
 
 interface PropertyTypeSelectorProps {
   handlePress: (index: number) => void;
-  toggleActivation: (isSelected: boolean, backup: Array<GenericType>) => void;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }
 
 interface HomeDetailProps {
   handleFilterChange: (value: number, key: string) => void;
-  toggleActivation: (isSelected: boolean, backup: Filters) => void;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }
 
 interface FacilitySelectorProps {
   handlePress: (index: number) => void;
-  toggleActivation: (isSelected: boolean, backup: Array<GenericType>) => void;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }
 
 interface AreaSliderProps {
   areaSummery?: AreaSummary;
   handleFilterChange: (values: [number, number]) => void;
-  toggleActivation: (isSelected: boolean, backup: [number, number]) => void;
+  setFilters: React.Dispatch<React.SetStateAction<Filters>>;
 }
 
 const PropertyTypeSelector = React.memo(
-  ({ handlePress, toggleActivation }: PropertyTypeSelectorProps) => {
+  ({ handlePress, setFilters }: PropertyTypeSelectorProps) => {
     const [isSelected, setIsSelected] = useState(true);
     const backupData = useRef(initialFilters.propertyType);
     return (
@@ -105,7 +105,15 @@ const PropertyTypeSelector = React.memo(
           <CheckBox
             onPress={() => {
               setIsSelected(!isSelected);
-              toggleActivation(!isSelected, backupData.current!);
+              setFilters((prev) => {
+                const newData = { ...prev };
+                if (isSelected) {
+                  newData.propertyType = backupData.current;
+                } else {
+                  delete newData.propertyType;
+                }
+                return newData;
+              });
             }}
             isSelected={isSelected}
           />
@@ -127,11 +135,7 @@ const PropertyTypeSelector = React.memo(
 );
 
 const PriceRangeSlider = React.memo(
-  ({
-    priceRanges,
-    handleFilterChange,
-    toggleActivation,
-  }: PriceSelectorProps) => {
+  ({ priceRanges, handleFilterChange, setFilters }: PriceSelectorProps) => {
     const [width, setWidth] = useState<number>(0);
     const handleLayout = (event: LayoutChangeEvent) => {
       const { width } = event.nativeEvent.layout;
@@ -148,7 +152,15 @@ const PriceRangeSlider = React.memo(
           <CheckBox
             onPress={() => {
               setIsSelected(!isSelected);
-              toggleActivation(!isSelected, backupData.current!);
+              setFilters((prev) => {
+                const newData = { ...prev };
+                if (isSelected) {
+                  newData.range = backupData.current;
+                } else {
+                  delete newData.range;
+                }
+                return newData;
+              });
             }}
             isSelected={isSelected}
           />
@@ -194,7 +206,7 @@ const PriceRangeSlider = React.memo(
 );
 
 const HomeDetail = React.memo(
-  ({ handleFilterChange, toggleActivation }: HomeDetailProps) => {
+  ({ handleFilterChange, setFilters }: HomeDetailProps) => {
     const backupData = useRef({
       bedroomCount: initialFilters.bedroomCount,
       bathroomCount: initialFilters.bathroomCount,
@@ -209,7 +221,17 @@ const HomeDetail = React.memo(
           <CheckBox
             onPress={() => {
               setIsSelected(!isSelected);
-              toggleActivation(!isSelected, backupData.current);
+              setFilters((prev) => {
+                const newData = { ...prev };
+                if (isSelected) {
+                  newData.bedroomCount = backupData.current.bedroomCount;
+                  newData.bathroomCount = backupData.current.bathroomCount;
+                } else {
+                  delete newData.bedroomCount;
+                  delete newData.bathroomCount;
+                }
+                return newData;
+              });
             }}
             isSelected={isSelected}
           />
@@ -262,7 +284,7 @@ const HomeDetail = React.memo(
 );
 
 const FacilitySelector = React.memo(
-  ({ handlePress, toggleActivation }: FacilitySelectorProps) => {
+  ({ handlePress, setFilters }: FacilitySelectorProps) => {
     const [isSelected, setIsSelected] = useState(false);
     const backupData = useRef(initialFilters.facilities);
     return (
@@ -274,7 +296,15 @@ const FacilitySelector = React.memo(
           <CheckBox
             onPress={() => {
               setIsSelected(!isSelected);
-              toggleActivation(!isSelected, backupData.current!);
+              setFilters((prev) => {
+                const newData = { ...prev };
+                if (isSelected) {
+                  newData.facilities = backupData.current;
+                } else {
+                  delete newData.facilities;
+                }
+                return newData;
+              });
             }}
             isSelected={isSelected}
           />
@@ -296,7 +326,7 @@ const FacilitySelector = React.memo(
 );
 
 const AreaSlider = React.memo(
-  ({ areaSummery, handleFilterChange, toggleActivation }: AreaSliderProps) => {
+  ({ areaSummery, handleFilterChange, setFilters }: AreaSliderProps) => {
     const [width, setWidth] = useState<number>(0);
     const handleLayout = (event: LayoutChangeEvent) => {
       const { width } = event.nativeEvent.layout;
@@ -313,7 +343,15 @@ const AreaSlider = React.memo(
           <CheckBox
             onPress={() => {
               setIsSelected(!isSelected);
-              toggleActivation(!isSelected, backupData.current!);
+              setFilters((prev) => {
+                const newData = { ...prev };
+                if (isSelected) {
+                  newData.areaRange = backupData.current;
+                } else {
+                  delete newData.areaRange;
+                }
+                return newData;
+              });
             }}
             isSelected={isSelected}
           />
@@ -626,7 +664,7 @@ export const FilterModal = React.memo(() => {
 
   const handleReset = () => {
     router.setParams({ propFilter: null });
-    setFilters(initialFilters);
+    // setFilters(initialFilters);
   };
 
   const backDrop = useCallback(
@@ -664,7 +702,7 @@ export const FilterModal = React.memo(() => {
         if (index >= 0) handleModalOpen();
         else handleModalClose();
       }}
-      index={0}
+      // index={0}
       backdropComponent={backDrop}
       style={styles.shadowBox}
       snapPoints={snapPoints}
@@ -700,95 +738,31 @@ export const FilterModal = React.memo(() => {
         >
           <PropertyTypeSelector
             handlePress={handlePropertyType}
-            toggleActivation={(
-              isSelected: boolean,
-              backup: Array<GenericType>
-            ) =>
-              setFilters((prev) => {
-                const newData = prev;
-                if (isSelected) {
-                  newData.propertyType = backup;
-                } else {
-                  delete newData.propertyType;
-                }
-                return newData;
-              })
-            }
+            setFilters={setFilters}
           />
           <PriceRangeSlider
-            priceRanges={filterDetail?.price_ranges}
+            priceRanges={filterDetail?.data?.price_ranges}
             handleFilterChange={(values: [number, number]) =>
               setFilters((prev) => ({ ...prev, range: values }))
             }
-            toggleActivation={(
-              isSelected: boolean,
-              backup: [number, number]
-            ) => {
-              setFilters((prev) => {
-                const newData = prev;
-                if (isSelected) {
-                  newData.range = backup;
-                } else {
-                  delete newData.range;
-                }
-                return newData;
-              });
-            }}
+            setFilters={setFilters}
           />
           <HomeDetail
             handleFilterChange={(value: number, key: string) => {
               setFilters((prev) => ({ ...prev, [key]: value }));
             }}
-            toggleActivation={(isSelected: boolean, backup: Filters) => {
-              setFilters((prev) => {
-                const newData = prev;
-                if (isSelected) {
-                  newData.bedroomCount = backup.bedroomCount;
-                  newData.bathroomCount = backup.bathroomCount;
-                } else {
-                  delete newData.bedroomCount;
-                  delete newData.bathroomCount;
-                }
-                return newData;
-              });
-            }}
+            setFilters={setFilters}
           />
           <FacilitySelector
             handlePress={handleFacilities}
-            toggleActivation={(
-              isSelected: boolean,
-              backup: Array<GenericType>
-            ) =>
-              setFilters((prev) => {
-                const newData = prev;
-                if (isSelected) {
-                  newData.facilities = backup;
-                } else {
-                  delete newData.facilities;
-                }
-                return newData;
-              })
-            }
+            setFilters={setFilters}
           />
           <AreaSlider
-            areaSummery={filterDetail?.area_summary}
+            areaSummery={filterDetail?.data?.area_summary}
             handleFilterChange={(values: [number, number]) =>
               setFilters((prev) => ({ ...prev, areaRange: values }))
             }
-            toggleActivation={(
-              isSelected: boolean,
-              backup: [number, number]
-            ) => {
-              setFilters((prev) => {
-                const newData = prev;
-                if (isSelected) {
-                  newData.areaRange = backup;
-                } else {
-                  delete newData.areaRange;
-                }
-                return newData;
-              });
-            }}
+            setFilters={setFilters}
           />
           <Button
             text="Set Filter"

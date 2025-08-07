@@ -111,7 +111,7 @@ export default function Index() {
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
       <FlatList
-        data={latestPropertiesLoading ? [] : latestProperties}
+        data={latestPropertiesLoading ? [] : latestProperties?.data}
         renderItem={({ item }) => (
           <ColumnCard
             item={item}
@@ -191,9 +191,9 @@ export default function Index() {
                 ))}
               </View>
             ) : !featuredProperties ||
-              featuredProperties.length === 0 ? null : (
+              featuredProperties.data?.length === 0 ? null : (
               <FlatList
-                data={featuredProperties}
+                data={featuredProperties.data}
                 renderItem={({ item }) => (
                   <FeaturedCard
                     item={item}
