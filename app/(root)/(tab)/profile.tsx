@@ -14,6 +14,9 @@ import { useGlobalContext } from "@/lib/global-provider";
 import { settings } from "@/constants/data";
 import { logout } from "@/lib/supabase";
 import { router } from "expo-router";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/lib/redux/store";
+import { fetchUserThunk } from "@/lib/redux/slices/userSlice";
 
 interface CustomeLinkProps {
   icon: ImageSourcePropType;
@@ -41,17 +44,18 @@ const CustomeLink = ({
             {title}
           </Text>
         </View>
-        {isLink && <Image source={icons.rightArrow} className="size-6" />}
+        {isLink && <Image source={icons.right_arrow} className="size-6" />}
       </View>
     </TouchableOpacity>
   );
 };
 
 const Profile = () => {
-  const { user, refetch } = useGlobalContext();
+  const { user } = useSelector((state: RootState) => state.user);
+  const dispatch = useDispatch<AppDispatch>();
   const handleLogout = async () => {
     await logout();
-    refetch();
+    dispatch(fetchUserThunk());
   };
   return (
     <SafeAreaView className="bg-accent-100">

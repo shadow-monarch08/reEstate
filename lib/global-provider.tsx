@@ -10,7 +10,7 @@ import React, {
 
 import { useSupabase } from "./useSupabase";
 import {
-  ChatOverviewReturnType,
+  ConversationOverviewReturnType,
   deleteFromMessages,
   FilterDetailReturnType,
   getAgentData,
@@ -27,8 +27,8 @@ import {
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { PostgrestError, RealtimeChannel } from "@supabase/supabase-js";
 import {
-  getAllChatOverviews,
-  getChatOverviews,
+  getAllConversationOverviews,
+  getConversationOverview,
   insertMessages,
   updateConversation,
   updateMessage,
@@ -68,9 +68,9 @@ interface GlobalContextType {
   } | null;
   wishlistManager: wishlistManagerType;
   setWishlistManager: React.Dispatch<React.SetStateAction<wishlistManagerType>>;
-  chatOverviewManager: Map<string, ChatOverviewReturnType>;
+  chatOverviewManager: Map<string, ConversationOverviewReturnType>;
   setChatOverviewManager: React.Dispatch<
-    React.SetStateAction<Map<string, ChatOverviewReturnType>>
+    React.SetStateAction<Map<string, ConversationOverviewReturnType>>
   >;
 }
 
@@ -83,9 +83,9 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     changeId: "",
   });
   const [chatOverviewManager, setChatOverviewManager] = useState<
-    Map<string, ChatOverviewReturnType>
+    Map<string, ConversationOverviewReturnType>
   >(new Map());
-  const chatOverviewRef = useRef<Map<string, ChatOverviewReturnType>>(
+  const chatOverviewRef = useRef<Map<string, ConversationOverviewReturnType>>(
     new Map()
   );
   const newArrivedConversationQueueRef = useRef(Promise.resolve());
@@ -125,7 +125,7 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
   const { data: inDeviceChatOverview, refetch: fetchInDeviceChatOverview } =
     useSupabase({
-      fn: getAllChatOverviews,
+      fn: getAllConversationOverviews,
       params: {
         range: [0, 20],
       },
@@ -171,7 +171,7 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (inDeviceChatOverview && inDeviceChatOverview.length > 0) {
-      let chatOverviewMap = new Map<string, ChatOverviewReturnType>();
+      let chatOverviewMap = new Map<string, ConversationOverviewReturnType>();
       for (const chat of inDeviceChatOverview) {
         chatOverviewMap.set(chat.conversation_id, chat);
         enqueueToCheckNewConversationAvatar(chat.conversation_id, {
@@ -215,7 +215,9 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
   }, [chatOverviewManager]);
 
   const addNewConversation = useCallback(async (message: Message) => {
-    let newChatOverview = await getChatOverviews(message.conversation_id);
+    let newChatOverview = await getConversationOverview(
+      message.conversation_id
+    );
     if (newChatOverview) {
       newChatOverview[0].last_message = message.message;
       newChatOverview[0].last_message_time = message.created_at;
@@ -455,7 +457,7 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
           sendRes(data.id, data.conversation_id);
           if (chatOverviewRef.current.get(data.conversation_id)) {
             const newMap = new Map(chatOverviewRef.current);
-            const conv: ChatOverviewReturnType = newMap.get(
+            const conv: ConversationOverviewReturnType = newMap.get(
               data.conversation_id
             )!;
             newMap.delete(data.conversation_id);

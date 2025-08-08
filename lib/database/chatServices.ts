@@ -1,11 +1,15 @@
-import { ChatOverviewReturnType, Conversation, Message } from "../supabase";
+import {
+  ConversationOverviewReturnType,
+  Conversation,
+  Message,
+} from "../supabase";
 import { getDb } from "./db";
 
-export const getAllChatOverviews = async ({
+export const getAllConversationOverviews = async ({
   range,
 }: {
   range: Array<number | number>;
-}): Promise<Array<ChatOverviewReturnType>> => {
+}): Promise<Array<ConversationOverviewReturnType>> => {
   const offset = range[0];
   const limit = range[1] - range[0];
   const db = getDb();
@@ -29,7 +33,7 @@ export const getAllChatOverviews = async ({
     [limit, offset]
   );
 
-  const overviews: Array<ChatOverviewReturnType> = [];
+  const overviews: Array<ConversationOverviewReturnType> = [];
 
   for (const conv of convResult) {
     // Step 2: Get latest message for this conversation
@@ -60,16 +64,16 @@ export const getAllChatOverviews = async ({
   return overviews;
 };
 
-export const getChatOverviews = async (
+export const getConversationOverview = async (
   conversationId: string
-): Promise<Array<ChatOverviewReturnType>> => {
+): Promise<Array<ConversationOverviewReturnType>> => {
   // Step 1: Get paginated conversations sorted by last_message (DESC)
   const db = getDb();
   const convResult: Conversation[] = await db.getAllAsync(
     `SELECT * FROM Conversation WHERE conversation_id = ?`,
     [conversationId]
   );
-  const overviews: Array<ChatOverviewReturnType> = [];
+  const overviews: Array<ConversationOverviewReturnType> = [];
 
   const msgResult: Message[] = await db.getAllAsync(
     `SELECT * FROM Message WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1`,

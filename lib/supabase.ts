@@ -72,7 +72,7 @@ export const Supabase = createClient(
 };
 */
 
-interface User {
+export interface User {
   id: string | undefined;
   avatar_url: string | undefined;
   email: string | undefined;
@@ -211,7 +211,7 @@ export interface File {
   size: string;
 }
 
-export interface ChatOverviewReturnType {
+export interface ConversationOverviewReturnType {
   agent_avatar: string;
   agent_id: string;
   agent_name: string;
@@ -787,7 +787,7 @@ export const getReviews = async ({
 export const getWishlistedPropertyId = async ({
   userId,
 }: {
-  userId: string | undefined;
+  userId: string;
 }): Promise<{
   data: Array<{ property: string }> | null;
   error: PostgrestError | null;

@@ -6,7 +6,7 @@ import { Image } from "react-native";
 import icons from "@/constants/icons";
 import { useSupabase } from "@/lib/useSupabase";
 import {
-  ChatOverviewReturnType,
+  ConversationOverviewReturnType,
   createConversation,
   deleteFromMessages,
   getFromConversation,
@@ -328,8 +328,8 @@ const FullChat = () => {
               setChatOverviewManager((prev) => {
                 const newMap = new Map(prev);
                 newMap.delete(metadata.conversation_id);
-                const newItemMap: Map<string, ChatOverviewReturnType> = new Map(
-                  [
+                const newItemMap: Map<string, ConversationOverviewReturnType> =
+                  new Map([
                     [
                       metadata.conversation_id,
                       {
@@ -345,16 +345,15 @@ const FullChat = () => {
                         last_message_sender_id: metadata.agent_id,
                       },
                     ],
-                  ]
-                );
+                  ]);
                 return new Map([...newItemMap, ...newMap]);
               });
             } else if (chatMetadata) {
               setChatOverviewManager((prev) => {
                 const newMap = new Map(prev);
                 newMap.delete(chatMetadata.conversation_id);
-                const newItemMap: Map<string, ChatOverviewReturnType> = new Map(
-                  [
+                const newItemMap: Map<string, ConversationOverviewReturnType> =
+                  new Map([
                     [
                       chatMetadata.conversation_id,
                       {
@@ -370,8 +369,7 @@ const FullChat = () => {
                         last_message_sender_id: chatMetadata.agent_id,
                       },
                     ],
-                  ]
-                );
+                  ]);
                 return new Map([...newItemMap, ...newMap]);
               });
             }

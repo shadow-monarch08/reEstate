@@ -7,7 +7,10 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { ChatOverviewReturnType, PropertyReturnType } from "@/lib/supabase";
+import {
+  ConversationOverviewReturnType,
+  PropertyReturnType,
+} from "@/lib/supabase";
 import { router } from "expo-router";
 import { useGlobalContext } from "@/lib/global-provider";
 import { timeSince, formatTimestamp } from "@/utils";
@@ -329,7 +332,7 @@ export const ChatCard = React.memo(
   ({
     item,
     handlePress,
-  }: { item: ChatOverviewReturnType } & {
+  }: { item: ConversationOverviewReturnType } & {
     handlePress: (param: object) => void;
   }) => {
     const { user } = useGlobalContext();
