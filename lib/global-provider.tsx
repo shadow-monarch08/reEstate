@@ -101,24 +101,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fn: getCurrentUser,
   });
 
-  const { data: wishlists, refetch: refetchWishlist } = useSupabase({
-    fn: getWishlistedPropertyId,
-    params: {
-      userId: user?.id,
-    },
-    skip: true,
-  });
-
-  const { refetch: UpdateWishlist } = useSupabase({
-    fn: updateWishlist,
-    params: {
-      propertyId: wishlistManager.changeId,
-      userId: user?.id,
-      operation: wishlistManager?.operation,
-    },
-    skip: true,
-  });
-
   const { data: filterDetail } = useSupabase({
     fn: getFilterDetail,
   });
@@ -130,12 +112,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
         range: [0, 20],
       },
     });
-
-  useEffect(() => {
-    refetchWishlist({
-      userId: user?.id,
-    });
-  }, [user]);
 
   const processUnreceivedMessages = async () => {
     if (user) {
@@ -182,33 +158,6 @@ const GlobalProvider = ({ children }: { children: ReactNode }) => {
       setChatOverviewManager(chatOverviewMap);
     }
   }, [inDeviceChatOverview]);
-
-  useEffect(() => {
-    if (wishlistManager.operation === "insert") {
-      UpdateWishlist({
-        propertyId: wishlistManager.changeId,
-        userId: user?.id,
-        operation: wishlistManager.operation,
-      });
-    } else if (wishlistManager.operation === "delete") {
-      UpdateWishlist({
-        propertyId: wishlistManager.changeId,
-        userId: user?.id,
-        operation: wishlistManager.operation,
-      });
-    }
-  }, [wishlistManager.propertyIds]);
-
-  useEffect(() => {
-    if (wishlists?.data) {
-      setWishlistManager((prev) => ({
-        ...prev,
-        propertyIds: new Set(
-          wishlists.data?.map((wishlist) => wishlist.property)
-        ),
-      }));
-    }
-  }, [wishlists]);
 
   useEffect(() => {
     chatOverviewRef.current = chatOverviewManager;

@@ -108,7 +108,6 @@ const CustomUserMarker = React.memo(
 );
 
 const Map = () => {
-  const { setWishlistManager, wishlistManager } = useGlobalContext();
   const [userRegion, setUserRegion] = useState<Region | null>(null);
   const isFocused = useIsFocused();
   const [hasMapLoaded, setHasMapLoaded] = useState<boolean>(false);
@@ -176,32 +175,6 @@ const Map = () => {
   }, []);
 
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
-  const handleWishlist = (
-    propertyId: string,
-    operation: "insert" | "delete"
-  ) => {
-    if (operation === "insert") {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.add(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "insert",
-          changeId: propertyId,
-        };
-      });
-    } else {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.delete(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "delete",
-          changeId: propertyId,
-        };
-      });
-    }
-  };
 
   const getLocation = useCallback(async () => {
     const hasPermission = await requestPermission();
@@ -280,12 +253,7 @@ const Map = () => {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={{ width: width }}>
-              <RowCard
-                item={item}
-                isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-                onPress={() => handelCardPress(item.id)}
-                handleWishlist={handleWishlist}
-              />
+              <RowCard item={item} onPress={() => handelCardPress(item.id)} />
             </View>
           )}
           ListEmptyComponent={

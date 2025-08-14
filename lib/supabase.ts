@@ -1,17 +1,23 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthError, createClient, PostgrestError } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { insertMessages, updateConversation } from "./database/chatServices";
+import { mmkvStorage } from "./storage/mmkvStorage";
 
 export const Supabase = createClient(
   Constants.expoConfig?.extra?.SUPABASE_URL,
   Constants.expoConfig?.extra?.SUPABASE_KEY,
   {
     auth: {
-      storage: AsyncStorage,
+      storage: mmkvStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 20,
+      },
     },
   }
 );
@@ -73,10 +79,10 @@ export const Supabase = createClient(
 */
 
 export interface User {
-  id: string | undefined;
-  avatar_url: string | undefined;
-  email: string | undefined;
-  full_name: string | undefined;
+  id: string;
+  avatar_url: string;
+  email: string;
+  full_name: string;
 }
 
 export interface PropertyReturnType {
@@ -290,7 +296,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
       return null;
     }
     const userData: User = {
-      id: user?.id,
+      id: user?.id ?? "",
       avatar_url: user?.user_metadata.picture,
       email: user?.user_metadata.email,
       full_name: user?.user_metadata.full_name,
@@ -1182,5 +1188,57 @@ export const getPorpertyWithinRadius = async ({
       data: null,
       error: err as PostgrestError,
     };
+  }
+};
+
+export const syncUnreceivedMessages = async (userId: string) => {
+  try {
+    const baseQuery = Supabase.from("conversations");
+    let range = [0, 20];
+    let messageRange = [0, 20];
+
+    while (true) {
+      const {
+        data: conversationIds,
+        error,
+        count,
+      } = await baseQuery
+        .select("id", { count: "exact" })
+        .eq("agent_message_status", "sent")
+        .eq("user", userId)
+        .range(range[0], range[1]);
+
+      if (error) throw new Error(error.message);
+      if (conversationIds) {
+        for await (const element of conversationIds) {
+          while (true) {
+            const { data, error, count } = await Supabase.from("messages")
+              .select("*", { count: "exact" })
+              .eq("conversation_id", element.id)
+              .range(messageRange[0], messageRange[1]);
+            if (error) throw new Error(error.message);
+            if (data) {
+              insertMessages(data);
+              updateConversation(element.id, {
+                "unread_count+": data.length,
+              });
+            }
+            if (count) if (messageRange[1] >= count) break;
+
+            messageRange = [messageRange[1] + 1, messageRange[1] + 20];
+          }
+        }
+      }
+
+      if (count) if (range[1] >= count) break;
+
+      range = [range[1] + 1, range[1] + 20];
+    }
+    await baseQuery
+      .update({ agent_message_status: "received" })
+      .eq("user", userId);
+    await Supabase.from("messages").delete().eq("receiver_id", userId);
+  } catch (error: any) {
+    throw new Error(error);
   }
 };

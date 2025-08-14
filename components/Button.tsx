@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   ImageSourcePropType,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import React, { useState } from "react";
 import { router } from "expo-router";
@@ -12,6 +13,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
+import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 export const Button = ({
   text,
@@ -63,27 +66,33 @@ export const SearchButton = ({ query }: { query: string }) => {
 };
 
 export const LikeButton = ({
-  isWishlisted,
-  handleWishlist,
+  isWishListed,
   id,
 }: {
+  isWishListed: boolean;
   id: string;
-  isWishlisted: boolean | undefined;
-  handleWishlist: (id: string, operation: "insert" | "delete") => void;
 }) => {
+  const { updateWishlistProperty } = useWishlistStore();
+  const { user } = useUserStore();
   const animatedHeartFilled = useAnimatedStyle(() => ({
-    transform: [{ scale: withTiming(isWishlisted ? 1 : 0, { duration: 200 }) }],
+    transform: [{ scale: withTiming(isWishListed ? 1 : 0, { duration: 200 }) }],
   }));
   const animatedHeartOutline = useAnimatedStyle(() => ({
     transform: [
-      { scale: withTiming(!isWishlisted ? 1 : 0, { duration: 200 }) },
+      { scale: withTiming(!isWishListed ? 1 : 0, { duration: 200 }) },
     ],
   }));
-  const [wishlisted, setWishlisted] = useState(isWishlisted);
+  const [wishlisted, setWishlisted] = useState(isWishListed);
   return (
     <TouchableOpacity
       onPress={() => {
-        handleWishlist(id, wishlisted ? "delete" : "insert");
+        if (user) {
+          updateWishlistProperty({
+            propertyId: id,
+            userId: user.id,
+            operation: wishlisted ? "delete" : "insert",
+          });
+        }
         setWishlisted(!wishlisted);
       }}
       className="relative size-6"

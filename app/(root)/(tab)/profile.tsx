@@ -10,13 +10,10 @@ import {
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
-import { useGlobalContext } from "@/lib/global-provider";
+
 import { settings } from "@/constants/data";
 import { logout } from "@/lib/supabase";
-import { router } from "expo-router";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/lib/redux/store";
-import { fetchUserThunk } from "@/lib/redux/slices/userSlice";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 interface CustomeLinkProps {
   icon: ImageSourcePropType;
@@ -51,11 +48,10 @@ const CustomeLink = ({
 };
 
 const Profile = () => {
-  const { user } = useSelector((state: RootState) => state.user);
-  const dispatch = useDispatch<AppDispatch>();
+  const { user, fetchUser } = useUserStore();
   const handleLogout = async () => {
     await logout();
-    dispatch(fetchUserThunk());
+    await fetchUser();
   };
   return (
     <SafeAreaView className="bg-accent-100">

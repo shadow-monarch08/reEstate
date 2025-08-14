@@ -15,9 +15,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
 import NoResult from "@/components/NoResult";
 import { SearchButton } from "@/components/Button";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 export default function Index() {
-  const { user, wishlistManager, setWishlistManager } = useGlobalContext();
+  const { user } = useUserStore();
   const params = useLocalSearchParams<{
     query: string;
     filter: string;
@@ -66,32 +67,7 @@ export default function Index() {
   };
 
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
-  const handleWishlist = (
-    propertyId: string,
-    operation: "insert" | "delete"
-  ) => {
-    if (operation === "insert") {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.add(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "insert",
-          changeId: propertyId,
-        };
-      });
-    } else {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.delete(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "delete",
-          changeId: propertyId,
-        };
-      });
-    }
-  };
+
   const handlePress = (type: string) => {
     router.push(`/properties/view-all`);
     router.setParams({ type: type });
@@ -113,12 +89,7 @@ export default function Index() {
       <FlatList
         data={latestPropertiesLoading ? [] : latestProperties?.data}
         renderItem={({ item }) => (
-          <ColumnCard
-            item={item}
-            onPress={() => handelCardPress(item.id)}
-            isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-            handleWishlist={handleWishlist}
-          />
+          <ColumnCard item={item} onPress={() => handelCardPress(item.id)} />
         )}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -198,8 +169,6 @@ export default function Index() {
                   <FeaturedCard
                     item={item}
                     onPress={() => handelCardPress(item.id)}
-                    isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-                    handleWishlist={handleWishlist}
                   />
                 )}
                 bounces={false}

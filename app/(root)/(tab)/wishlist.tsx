@@ -15,6 +15,8 @@ import { useSupabase } from "@/lib/useSupabase";
 import { getWishlistProperty, PropertyReturnType } from "@/lib/supabase";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
+import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 
 const ListHeaderComponent = React.memo(
   ({
@@ -77,8 +79,10 @@ const ListHeaderComponent = React.memo(
 
 const Wishlist = () => {
   const [range, setRange] = useState<[number, number]>([0, 20]);
-  const { user, setWishlistManager, wishlistManager, bottomSheetModalRef } =
-    useGlobalContext();
+  const { bottomSheetModalRef } = useGlobalContext();
+  const { user } = useUserStore();
+  const { wishlistIds, operation, updatedPropertyId } = useWishlistStore();
+
   const [cardType, setCardType] = useState<"grid" | "list">("grid");
   const params = useLocalSearchParams<{
     filter: string;
@@ -122,24 +126,26 @@ const Wishlist = () => {
   }, [params.filter, user, params.query, params.propFilter]);
 
   useEffect(() => {
-    if (wishlistManager.operation === "delete") {
-      setData((prev) => ({
-        error: null,
-        data:
-          prev?.data?.filter(
-            (item: PropertyReturnType) => item.id !== wishlistManager.changeId
-          ) ?? [],
-      }));
-    } else if (wishlistManager.operation === "insert") {
-      refetch({
-        filter: params.filter,
-        query: params.query,
-        range: [0, 20],
-        propFilter: params.propFilter,
-        userId: user?.id,
-      });
+    if (operation) {
+      if (operation === "delete") {
+        setData((prev) => ({
+          error: null,
+          data:
+            prev?.data?.filter(
+              (item: PropertyReturnType) => item.id !== updatedPropertyId
+            ) ?? [],
+        }));
+      } else {
+        refetch({
+          filter: params.filter,
+          query: params.query,
+          range: [0, 20],
+          propFilter: params.propFilter,
+          userId: user?.id,
+        });
+      }
     }
-  }, [wishlistManager.propertyIds]);
+  }, [wishlistIds]);
 
   const fetchMoreData = useCallback(() => {
     if (loading || loadingMore) return;
@@ -160,33 +166,6 @@ const Wishlist = () => {
       }
     };
   }, []);
-
-  const handleWishlist = useCallback(
-    (propertyId: string, operation: "insert" | "delete") => {
-      if (operation === "insert") {
-        setWishlistManager((prev) => {
-          const newPropertyIds = new Set(prev.propertyIds);
-          newPropertyIds.add(propertyId);
-          return {
-            propertyIds: newPropertyIds,
-            operation: "insert",
-            changeId: propertyId,
-          };
-        });
-      } else {
-        setWishlistManager((prev) => {
-          const newPropertyIds = new Set(prev.propertyIds);
-          newPropertyIds.delete(propertyId);
-          return {
-            propertyIds: newPropertyIds,
-            operation: "delete",
-            changeId: propertyId,
-          };
-        });
-      }
-    },
-    [wishlistManager]
-  );
 
   const handelCardPress = useCallback(
     (id: string) => router.push(`/properties/${id}`),
@@ -239,21 +218,11 @@ const Wishlist = () => {
   const renderItem = useCallback(
     ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
-        <ColumnCard
-          item={item}
-          onPress={() => handelCardPress(item.id)}
-          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-          handleWishlist={handleWishlist}
-        />
+        <ColumnCard item={item} onPress={() => handelCardPress(item.id)} />
       ) : (
-        <RowCard
-          item={item}
-          onPress={() => handelCardPress(item.id)}
-          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-          handleWishlist={handleWishlist}
-        />
+        <RowCard item={item} onPress={() => handelCardPress(item.id)} />
       ),
-    [cardType, wishlistManager.propertyIds]
+    [cardType, wishlistIds]
   );
 
   return (

@@ -67,41 +67,7 @@ const ListHeaderComponent = React.memo(
 
 const Explore = () => {
   const [range, setRange] = useState<[number, number]>([0, 5]);
-  const [isFirstInstance, setIsFirstInstance] = useState(true);
-  const [isEnd, setIsEnd] = useState(false);
-  const [properties, setProperties] = useState<
-    Array<PropertyReturnType> | [] | null
-  >([]);
   const [cardType, setCardType] = useState<"grid" | "list">("grid");
-
-  const { setWishlistManager, wishlistManager } = useGlobalContext();
-
-  const handleWishlist = (
-    propertyId: string,
-    operation: "insert" | "delete"
-  ) => {
-    if (operation === "insert") {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.add(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "insert",
-          changeId: propertyId,
-        };
-      });
-    } else {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.delete(propertyId);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "delete",
-          changeId: propertyId,
-        };
-      });
-    }
-  };
 
   const params = useLocalSearchParams<{
     query: string;
@@ -195,19 +161,9 @@ const Explore = () => {
   const renderItem = useCallback(
     ({ item }: { item: PropertyReturnType }) =>
       cardType === "grid" ? (
-        <ColumnCard
-          item={item}
-          onPress={() => handelCardPress(item.id)}
-          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-          handleWishlist={handleWishlist}
-        />
+        <ColumnCard item={item} onPress={() => handelCardPress(item.id)} />
       ) : (
-        <RowCard
-          item={item}
-          onPress={() => handelCardPress(item.id)}
-          isWishlisted={!!wishlistManager.propertyIds?.has(item.id)}
-          handleWishlist={handleWishlist}
-        />
+        <RowCard item={item} onPress={() => handelCardPress(item.id)} />
       ),
     [cardType]
   );

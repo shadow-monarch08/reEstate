@@ -1,26 +1,20 @@
 import { View, Text, Image, TouchableOpacity, UIManager } from "react-native";
-import React, { useState } from "react";
+import React from "react";
 import images from "@/constants/images";
 import icons from "@/constants/icons";
 import { _internal_maybeHideAsync } from "expo-router/build/utils/splash";
-import Animated, {
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
 import {
   ConversationOverviewReturnType,
   PropertyReturnType,
 } from "@/lib/supabase";
-import { router } from "expo-router";
 import { useGlobalContext } from "@/lib/global-provider";
 import { timeSince, formatTimestamp } from "@/utils";
 import { LikeButton } from "./Button";
+import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 
 export interface Props {
   onPress?: () => void;
   item: PropertyReturnType;
-  isWishlisted?: boolean;
-  handleWishlist: (propertyId: string, operation: "insert" | "delete") => void;
 }
 
 interface reviewProps {
@@ -46,12 +40,8 @@ export const LoadingFeaturedCard = () => {
 };
 
 export const FeaturedCard = React.memo(
-  ({
-    onPress,
-    item: { address, id, image, name, price, rating },
-    isWishlisted,
-    handleWishlist,
-  }: Props) => {
+  ({ onPress, item: { address, id, image, name, price, rating } }: Props) => {
+    const { wishlistIds } = useWishlistStore();
     return (
       <TouchableOpacity
         className="h-[20rem] flex-1 max-w-[15rem] overflow-hidden relative"
@@ -96,11 +86,7 @@ export const FeaturedCard = React.memo(
                 <Text className="text-white font-rubik-bold text-base">
                   ${price}
                 </Text>
-                <LikeButton
-                  isWishlisted={isWishlisted}
-                  handleWishlist={handleWishlist}
-                  id={id}
-                />
+                <LikeButton isWishListed={wishlistIds.has(id)} id={id} />
               </View>
             </View>
           </View>
@@ -126,12 +112,8 @@ export const LoadingColumnCard = () => {
 };
 
 export const ColumnCard = React.memo(
-  ({
-    onPress,
-    item: { address, id, image, name, price, rating },
-    isWishlisted,
-    handleWishlist,
-  }: Props) => {
+  ({ onPress, item: { address, id, image, name, price, rating } }: Props) => {
+    const { wishlistIds } = useWishlistStore();
     return (
       <TouchableOpacity
         className="p-4 rounded-2xl bg-white shadow-zinc-200 shadow-md flex-1 min-w-[12rem] max-w-[13rem]"
@@ -175,11 +157,7 @@ export const ColumnCard = React.memo(
               <Text className="text-primary-300 font-rubik-bold text-sm">
                 ${price}
               </Text>
-              <LikeButton
-                isWishlisted={isWishlisted}
-                id={id}
-                handleWishlist={handleWishlist}
-              />
+              <LikeButton isWishListed={wishlistIds.has(id)} id={id} />
             </View>
           </View>
         </View>
@@ -208,12 +186,8 @@ export const LoadingRowCard = () => {
 };
 
 export const RowCard = React.memo(
-  ({
-    onPress,
-    item: { address, id, image, name, price, rating },
-    isWishlisted,
-    handleWishlist,
-  }: Props) => {
+  ({ onPress, item: { address, id, image, name, price, rating } }: Props) => {
+    const { wishlistIds } = useWishlistStore();
     return (
       <View className="px-5 w-full flex items-center mt-5">
         <TouchableOpacity
@@ -255,11 +229,7 @@ export const RowCard = React.memo(
             </Text>
           </View>
           <View className="flex flex-col justify-between py-5 items-end flex-1">
-            <LikeButton
-              isWishlisted={isWishlisted}
-              id={id}
-              handleWishlist={handleWishlist}
-            />
+            <LikeButton isWishListed={wishlistIds.has(id)} id={id} />
             <Text className="text-primary-300 font-rubik-bold text-sm">
               ${price}
             </Text>

@@ -1,14 +1,20 @@
-import { useGlobalContext } from "@/lib/global-provider";
-import { RootState } from "@/lib/redux/store";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
+import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 import { Redirect, Slot } from "expo-router";
+import { useEffect } from "react";
 import { ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useSelector } from "react-redux";
 
 const AppLayout = () => {
-  const { user, userLoading, isLoggedIn } = useSelector(
-    (state: RootState) => state.user
-  );
+  const { userLoading, user, isLoggedIn } = useUserStore();
+  const { fetchWishlistPropertyIds } = useWishlistStore();
+  useEffect(() => {
+    (async () => {
+      if (user) {
+        await fetchWishlistPropertyIds(user.id);
+      }
+    })();
+  }, [user]);
 
   if (userLoading) {
     return (

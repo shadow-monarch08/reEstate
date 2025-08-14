@@ -39,6 +39,7 @@ import { getConversationByAgent } from "@/lib/database/chatServices";
 import PagerView from "react-native-pager-view";
 // import MyMap from "@/components/MyMap";
 import { LikeButton } from "@/components/Button";
+import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 
 const PropertySpec = ({
   icon,
@@ -171,33 +172,10 @@ const Property = () => {
   const currentPage = useSharedValue(0);
   const params = useLocalSearchParams<{ id: string }>();
   const [gallaryImages, setgallaryImages] = useState<Array<string>>([]);
-  const { bottomSheetModalRef, setWishlistManager, wishlistManager } =
-    useGlobalContext();
-  const conversationIdRef = useRef<string | null>(null);
+  const { bottomSheetModalRef } = useGlobalContext();
 
-  const handleWishlist = (id: string, operation: "insert" | "delete") => {
-    if (operation === "insert") {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.add(id);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "insert",
-          changeId: id,
-        };
-      });
-    } else {
-      setWishlistManager((prev) => {
-        const newPropertyIds = new Set(prev.propertyIds);
-        newPropertyIds.delete(id);
-        return {
-          propertyIds: newPropertyIds,
-          operation: "delete",
-          changeId: id,
-        };
-      });
-    }
-  };
+  const { wishlistIds } = useWishlistStore();
+  const conversationIdRef = useRef<string | null>(null);
 
   const { data: propertyDetail, loading } = useSupabase({
     fn: getPropertyDetail,
@@ -207,8 +185,10 @@ const Property = () => {
   });
 
   const checkIfNewConversation = async () => {
-    if (propertyDetail) {
-      const conversation = await getConversationByAgent(propertyDetail.agent);
+    if (propertyDetail?.data) {
+      const conversation = await getConversationByAgent(
+        propertyDetail.data.agent
+      );
       if (conversation.length !== 0) {
         conversationIdRef.current = conversation[0].conversation_id;
       }
@@ -221,17 +201,17 @@ const Property = () => {
       if (conversationIdRef.current) {
         chatMetadata = {
           conversation_id: conversationIdRef.current,
-          avatar_url: propertyDetail?.agent_avatar.url,
-          agent_name: propertyDetail?.agent_name,
-          agent_id: propertyDetail?.agent,
+          avatar_url: propertyDetail.data?.agent_avatar.url,
+          agent_name: propertyDetail.data?.agent_name,
+          agent_id: propertyDetail.data?.agent,
           isFirstMessage: false,
         };
       } else {
         chatMetadata = {
           conversation_id: "",
-          avatar_url: propertyDetail?.agent_avatar.url,
-          agent_name: propertyDetail?.agent_name,
-          agent_id: propertyDetail?.agent,
+          avatar_url: propertyDetail.data?.agent_avatar.url,
+          agent_name: propertyDetail.data?.agent_name,
+          agent_id: propertyDetail.data?.agent,
           isFirstMessage: true,
         };
       }
@@ -241,10 +221,10 @@ const Property = () => {
   }, [propertyDetail]);
 
   useEffect(() => {
-    if (propertyDetail) {
+    if (propertyDetail?.data) {
       setgallaryImages([
-        propertyDetail?.image,
-        ...propertyDetail?.gallery_images,
+        propertyDetail.data?.image,
+        ...propertyDetail.data?.gallery_images,
       ]);
     }
     checkIfNewConversation();
@@ -323,8 +303,7 @@ const Property = () => {
                 </TouchableOpacity>
                 <View className="flex flex-row gap-5 items-center">
                   <LikeButton
-                    isWishlisted={!!wishlistManager.propertyIds?.has(params.id)}
-                    handleWishlist={handleWishlist}
+                    isWishListed={wishlistIds.has(params.id)}
                     id={params.id}
                   />
                   <TouchableOpacity>
@@ -339,12 +318,12 @@ const Property = () => {
             </View>
             <View className="px-5 my-7">
               <Text className="text-2xl font-rubik-bold text-black-300">
-                {propertyDetail?.name}
+                {propertyDetail?.data?.name}
               </Text>
               <View className="flex flex-row mt-5 gap-4">
                 <View className="bg-primary-100 py-1 px-3 rounded-full">
                   <Text className="capitalize mt-0.5 text-primary-300 font-rubik-medium text-sm">
-                    {propertyDetail?.type}
+                    {propertyDetail?.data?.type}
                   </Text>
                 </View>
                 <View className="flex flex-row gap-2 items-center">
@@ -354,8 +333,8 @@ const Property = () => {
                     resizeMode="contain"
                   />
                   <Text className="text-base font-rubik-medium text-black-200 mt-1">
-                    {propertyDetail?.rating}({propertyDetail?.review_count}{" "}
-                    reviews)
+                    {propertyDetail?.data?.rating}(
+                    {propertyDetail?.data?.review_count} reviews)
                   </Text>
                 </View>
               </View>
@@ -363,17 +342,17 @@ const Property = () => {
                 <PropertySpec
                   icon={icons.bed}
                   title="Beds"
-                  units={propertyDetail?.bedrooms}
+                  units={propertyDetail?.data?.bedrooms}
                 />
                 <PropertySpec
                   icon={icons.bath}
                   title="bath"
-                  units={propertyDetail?.bathrooms}
+                  units={propertyDetail?.data?.bathrooms}
                 />
                 <PropertySpec
                   icon={icons.area}
                   title="sqft"
-                  units={propertyDetail?.area}
+                  units={propertyDetail?.data?.area}
                 />
               </View>
               <View className="mt-7 mb-28 pt-7 border-t border-t-primary-200">
@@ -383,7 +362,7 @@ const Property = () => {
                 <View className="mt-4 flex flex-row gap-4">
                   <Image
                     className="rounded-full size-20"
-                    source={{ uri: propertyDetail?.agent_avatar.url }}
+                    source={{ uri: propertyDetail?.data?.agent_avatar.url }}
                     resizeMode="cover"
                   />
                   <View className="flex flex-row justify-between flex-1">
@@ -392,7 +371,7 @@ const Property = () => {
                         className="text-black-300 font-rubik-semibold text-lg"
                         numberOfLines={1}
                       >
-                        {propertyDetail?.agent_name}
+                        {propertyDetail?.data?.agent_name}
                       </Text>
                       <Text className="text-black-200 font-rubik-medium text-sm">
                         Owner
@@ -412,13 +391,13 @@ const Property = () => {
                   Overview
                 </Text>
                 <Text className="break-words text-base text-black-200 font-rubik leading-7 mt-4">
-                  {propertyDetail?.description}
+                  {propertyDetail?.data?.description}
                 </Text>
                 <Text className="text-xl font-rubik-semibold text-black-300 mt-7">
                   Facilities
                 </Text>
                 <View className="flex flex-row flex-wrap gap-3 mt-2">
-                  {propertyDetail?.facilities.map((item, i) => (
+                  {propertyDetail?.data?.facilities.map((item, i) => (
                     <FacilitySpecs
                       item={facilities.find(
                         (facility) => facility.title === item
@@ -478,7 +457,7 @@ const Property = () => {
                 <View className="flex flex-row items-center gap-2 mt-4">
                   <Image source={icons.location} className="size-6" />
                   <Text className="break-words text-sm text-black-200 font-rubik-medium mt-1 w-full">
-                    {propertyDetail?.address}
+                    {propertyDetail?.data?.address}
                   </Text>
                 </View>
                 <View className="h-56 w-full mt-5">
@@ -496,12 +475,12 @@ const Property = () => {
                       resizeMode="contain"
                     />
                     <Text className="font-rubik-semibold text-xl text-black-300">
-                      {propertyDetail?.rating} ({propertyDetail?.review_count}{" "}
-                      reviews)
+                      {propertyDetail?.data?.rating} (
+                      {propertyDetail?.data?.review_count} reviews)
                     </Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => handelPress(propertyDetail?.id)}
+                    onPress={() => handelPress(propertyDetail?.data?.id)}
                   >
                     <Text className="font-rubik-medium text-sm text-primary-300 mt-1">
                       See All
@@ -510,7 +489,7 @@ const Property = () => {
                 </View>
                 <View className="w-full mt-5">
                   {propertyDetail ? (
-                    <ReviewCard data={propertyDetail?.top_reviews[0]} />
+                    <ReviewCard data={propertyDetail.data?.top_reviews[0]} />
                   ) : (
                     <ActivityIndicator
                       size={25}
@@ -527,7 +506,7 @@ const Property = () => {
                 Price
               </Text>
               <Text className="text-primary-300 font-rubik-bold text-2xl">
-                ${propertyDetail?.price}
+                ${propertyDetail?.data?.price}
               </Text>
             </View>
             <Button text="Booking Now" buttonStyle="z-10" />

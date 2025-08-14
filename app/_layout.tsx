@@ -9,12 +9,10 @@ import { initializeDatabase } from "@/lib/database/db";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { FilterModal } from "@/components/FilterModal";
-import { Provider, useDispatch } from "react-redux";
-import { store, AppDispatch, RootState } from "@/lib/redux/store";
-import { fetchUserThunk } from "@/lib/redux/slices/userSlice";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 export default function RootLayout() {
-  const dispatch = useDispatch<AppDispatch>();
+  const { fetchUser } = useUserStore();
   const [fontsLoaded] = useFonts({
     "Rubik-Bold": require("../assets/fonts/Rubik-Bold.ttf"),
     "Rubik-ExtraBold": require("../assets/fonts/Rubik-ExtraBold.ttf"),
@@ -33,7 +31,7 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       await initializeDatabase();
-      await dispatch(fetchUserThunk());
+      await fetchUser();
       setIsReady(true);
     })();
   }, []);
@@ -43,12 +41,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView>
       <BottomSheetModalProvider>
-        <Provider store={store}>
-          <GlobalProvider>
-            <Stack screenOptions={{ headerShown: false }} />
-            <FilterModal />
-          </GlobalProvider>
-        </Provider>
+        <GlobalProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+          <FilterModal />
+        </GlobalProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
