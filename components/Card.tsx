@@ -305,7 +305,6 @@ export const ChatCard = React.memo(
   }: { item: ConversationOverviewReturnType } & {
     handlePress: (param: object) => void;
   }) => {
-    const { user } = useGlobalContext();
     return (
       <TouchableOpacity
         activeOpacity={0.6}
