@@ -11,7 +11,7 @@ import { Filters_small } from "@/components/Filters";
 import Search from "@/components/Search";
 import icons from "@/constants/icons";
 import { router, useLocalSearchParams } from "expo-router";
-import NoResult from "@/components/NoResult";
+import { NoResult } from "@/components/NoResult";
 import { useSupabase } from "@/lib/useSupabase";
 import { getSearchedProperties, PropertyReturnType } from "@/lib/supabase";
 import { useGlobalContext } from "@/lib/global-provider";

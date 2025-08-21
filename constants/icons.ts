@@ -15,6 +15,7 @@ import chat_filled from "@/assets/icons/chat-filled.png";
 import chat_outline from "@/assets/icons/chat-outline.png";
 import chat from "@/assets/icons/chat.png";
 import clip from "@/assets/icons/clip.png";
+import clock from "@/assets/icons/clock.png";
 import condo from "@/assets/icons/condo.png";
 import cutlery from "@/assets/icons/cutlery.png";
 import dog from "@/assets/icons/dog.png";
@@ -89,6 +90,7 @@ export default {
   chat_outline,
   chat,
   clip,
+  clock,
   condo,
   cutlery,
   dog,

@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Filters_small } from "@/components/Filters";
 import { SafeAreaView } from "react-native-safe-area-context";
-import NoResult from "@/components/NoResult";
+import { NoResult } from "@/components/NoResult";
 import {
   ColumnCard,
   LoadingColumnCard,

@@ -36,7 +36,7 @@ import {
   ReviewReturn,
 } from "@/lib/supabase";
 import { LoadingReviewCard, ReviewCard } from "./Card";
-import NoResult from "./NoResult";
+import { NoResult } from "./NoResult";
 import { initialFilters } from "@/constants/data";
 
 interface GenericType {

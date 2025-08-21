@@ -35,11 +35,12 @@ import Animated, {
 } from "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { getConversationByAgent } from "@/lib/database/chatServices";
+// import { getConversationByAgent } from "@/lib/database/localStore";
 import PagerView from "react-native-pager-view";
 // import MyMap from "@/components/MyMap";
 import { LikeButton } from "@/components/Button";
 import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
+import { useChatStore } from "@/lib/zustand/store/useChatStore";
 
 const PropertySpec = ({
   icon,
@@ -173,9 +174,8 @@ const Property = () => {
   const params = useLocalSearchParams<{ id: string }>();
   const [gallaryImages, setgallaryImages] = useState<Array<string>>([]);
   const { bottomSheetModalRef } = useGlobalContext();
-
+  const { setActiveConversationData } = useChatStore();
   const { wishlistIds } = useWishlistStore();
-  const conversationIdRef = useRef<string | null>(null);
 
   const { data: propertyDetail, loading } = useSupabase({
     fn: getPropertyDetail,
@@ -184,40 +184,16 @@ const Property = () => {
     },
   });
 
-  const checkIfNewConversation = async () => {
-    if (propertyDetail?.data) {
-      const conversation = await getConversationByAgent(
-        propertyDetail.data.agent
-      );
-      if (conversation.length !== 0) {
-        conversationIdRef.current = conversation[0].conversation_id;
-      }
-    }
-  };
-
   const handleOpenChat = useCallback(() => {
-    let chatMetadata;
-    if (propertyDetail) {
-      if (conversationIdRef.current) {
-        chatMetadata = {
-          conversation_id: conversationIdRef.current,
-          avatar_url: propertyDetail.data?.agent_avatar.url,
-          agent_name: propertyDetail.data?.agent_name,
-          agent_id: propertyDetail.data?.agent,
-          isFirstMessage: false,
-        };
-      } else {
-        chatMetadata = {
-          conversation_id: "",
-          avatar_url: propertyDetail.data?.agent_avatar.url,
-          agent_name: propertyDetail.data?.agent_name,
-          agent_id: propertyDetail.data?.agent,
-          isFirstMessage: true,
-        };
-      }
-    }
-    const json = encodeURIComponent(JSON.stringify(chatMetadata)); // escape for URL
-    router.push(`/chat/${json}`);
+    setActiveConversationData({
+      conversation_id: "",
+      newConversation: true,
+      agent_avatar: propertyDetail?.data?.agent_avatar.url,
+      agent_name: propertyDetail?.data?.agent_name,
+      agent_id: propertyDetail?.data?.agent_id,
+    });
+
+    router.push(`/chat/conversation`);
   }, [propertyDetail]);
 
   useEffect(() => {
@@ -227,7 +203,7 @@ const Property = () => {
         ...propertyDetail.data?.gallery_images,
       ]);
     }
-    checkIfNewConversation();
+    // checkIfNewConversation();
   }, [loading]);
 
   const handelPress = (id: string | undefined) => {

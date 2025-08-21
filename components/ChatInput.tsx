@@ -9,9 +9,9 @@ const ChatInput = ({
   handleSubmit,
 }: {
   value?: string;
-  handleInput?: (param: string) => void;
+  handleInput: (param: string) => void;
   placeholder?: string;
-  handleSubmit?: () => void;
+  handleSubmit: (m?: string) => void;
 }) => {
   return (
     <View className="w-full px-3 mb-6 flex flex-row gap-3 items-center">
@@ -52,20 +52,20 @@ const ChatInput = ({
           </TouchableOpacity>
         </View>
       </View>
-      {value?.trim().length !== 0 ? (
-        <TouchableOpacity
-          activeOpacity={0.6}
-          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
-          onPress={handleSubmit}
-        >
-          <Image source={icons.send} className="size-6" tintColor={"white"} />
-        </TouchableOpacity>
-      ) : (
+      {value?.trim().length === 0 || !value ? (
         <TouchableOpacity
           activeOpacity={0.6}
           className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
         >
           <Image source={icons.mic} className="size-6" tintColor={"white"} />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+          onPress={() => handleSubmit()}
+        >
+          <Image source={icons.send} className="size-6" tintColor={"white"} />
         </TouchableOpacity>
       )}
     </View>

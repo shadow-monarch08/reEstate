@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { getFeaturedProperties, getLatestProperties } from "@/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
-import NoResult from "@/components/NoResult";
+import { NoResult } from "@/components/NoResult";
 import { SearchButton } from "@/components/Button";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 

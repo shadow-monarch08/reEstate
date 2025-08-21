@@ -62,11 +62,6 @@ export const useWishlistStore = create<WishlistState & WishlistFecthCalls>(
       operation: "insert" | "delete";
     }) => {
       try {
-        await updateWishlist({
-          propertyId,
-          userId,
-          operation, // 'add' or 'remove'
-        });
         set((state) => {
           const newWishlistIds = new Set(state.wishlistIds);
           if (operation === "insert") {
@@ -80,6 +75,11 @@ export const useWishlistStore = create<WishlistState & WishlistFecthCalls>(
             operation,
             updatedPropertyId: propertyId,
           };
+        });
+        await updateWishlist({
+          propertyId,
+          userId,
+          operation, // 'add' or 'remove'
         });
       } catch (error) {
         console.error("Error updating wishlist:", error);

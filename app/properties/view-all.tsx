@@ -14,7 +14,7 @@ import {
   LoadingRowCard,
   RowCard,
 } from "@/components/Card";
-import NoResult from "@/components/NoResult";
+import { NoResult } from "@/components/NoResult";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 

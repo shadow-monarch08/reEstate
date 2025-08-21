@@ -26,13 +26,6 @@ import {
 } from "./supabase";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { PostgrestError, RealtimeChannel } from "@supabase/supabase-js";
-import {
-  getAllConversationOverviews,
-  getConversationOverview,
-  insertMessages,
-  updateConversation,
-  updateMessage,
-} from "./database/chatServices";
 import { cacheProfileImage } from "./database/saveFiles";
 import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 

@@ -7,32 +7,43 @@ export const initializeDatabase = async () => {
     db = await SQLite.openDatabaseAsync("chat.db");
     await db.execAsync(`PRAGMA journal_mode = WAL;`);
     await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS Conversation (
+      CREATE TABLE IF NOT EXISTS Conversations (
         conversation_id TEXT PRIMARY KEY NOT NULL,
         agent_id TEXT,
         agent_name TEXT,
         agent_avatar TEXT,
-        avatar_last_update TEXT,
-        unread_count INTEGER
+        avatar_last_update TEXT
       );
     `);
 
     await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS Message (
-        id TEXT PRIMARY KEY NOT NULL,
-        message TEXT,
-        conversation_id TEXT,
-        sender_id TEXT,
-        receiver_id TEXT,
-        file TEXT,
-        property_ref TEXT,
-        created_at TEXT,
-        status TEXT,
-        FOREIGN KEY (conversation_id)
-        REFERENCES Conversation(conversation_id)
-        ON DELETE CASCADE
+      create table if not exists Messages (
+        id integer primary key autoincrement,
+        server_id text null,
+        local_id text null,
+        conversation_id text not null,
+        sender_role text not null,
+        sender_id text not null,
+        receiver_id text not null,
+        body text not null,
+        content_type text default 'text/plain',
+        created_at text not null,
+        pending integer default 0,
+        status text default 'pending',
+        unique(server_id)
       );
-      `);
+    `);
+
+    await db.execAsync(`
+        create table if not exists read_state (
+          conversation_id text primary key,
+          last_read_at text default '1970-01-01T00:00:00.000Z'
+        );
+    `);
+
+    await db.execAsync(`
+        create index if not exists idx_messages_conv_time on Messages(conversation_id, created_at);
+    `);
   }
 };
 

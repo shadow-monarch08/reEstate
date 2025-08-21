@@ -2,27 +2,38 @@ import { View, Text, FlatList, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
-import { useGlobalContext } from "@/lib/global-provider";
 import { ChatCard } from "@/components/Card";
 import { router } from "expo-router";
+import {
+  ActiveConversationData,
+  useChatStore,
+} from "@/lib/zustand/store/useChatStore";
+import { NoResult } from "@/components/NoResult";
+import images from "@/constants/images";
 
 const Chat = () => {
-  const { chatOverviewManager } = useGlobalContext();
-
-  const handelCardPress = (item: object) => {
-    const json = encodeURIComponent(JSON.stringify(item)); // escape for URL
-    router.push(`/chat/${json}`);
+  const { conversationOverview, setActiveConversationData } = useChatStore();
+  const handelCardPress = (item: ActiveConversationData) => {
+    setActiveConversationData(item);
+    router.push(`/chat/conversation`);
   };
 
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
       <FlatList
-        data={Array.from(chatOverviewManager?.values())}
+        data={Array.from(conversationOverview?.values())}
         keyExtractor={(item) => item.agent_id}
         className="px-5"
         renderItem={({ item }) => (
           <ChatCard handlePress={handelCardPress} item={item} />
         )}
+        ListEmptyComponent={
+          <NoResult
+            title="No Conversation"
+            subTitle="Connect and chat with agents of your choice."
+            image={images.no_chat_result}
+          />
+        }
         ListHeaderComponentClassName="pt-7 mb-5"
         ListHeaderComponent={
           <View>

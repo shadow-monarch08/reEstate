@@ -11,6 +11,7 @@ import { useGlobalContext } from "@/lib/global-provider";
 import { timeSince, formatTimestamp } from "@/utils";
 import { LikeButton } from "./Button";
 import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
+import { ActiveConversationData } from "@/lib/zustand/store/useChatStore";
 
 export interface Props {
   onPress?: () => void;
@@ -54,7 +55,7 @@ export const FeaturedCard = React.memo(
           resizeMode="cover"
         />
         <Image
-          source={images.cardGradient}
+          source={images.card_gradient}
           className="size-full absolute bottom-0 rounded-[2rem]"
         />
         <View className="flex flex-col justify-between h-full py-6">
@@ -303,7 +304,7 @@ export const ChatCard = React.memo(
     item,
     handlePress,
   }: { item: ConversationOverviewReturnType } & {
-    handlePress: (param: object) => void;
+    handlePress: (param: ActiveConversationData) => void;
   }) => {
     return (
       <TouchableOpacity
@@ -311,12 +312,11 @@ export const ChatCard = React.memo(
         className="flex flex-row justify-between items-center w-full mt-7 h-fit relative"
         onPress={() =>
           handlePress({
-            conversation_id: item.conversation_id,
-            avatar_url: item.agent_avatar,
+            agent_avatar: item.agent_avatar,
             avatar_last_update: item.avatar_last_update,
+            conversation_id: item.conversation_id,
             agent_name: item.agent_name,
             agent_id: item.agent_id,
-            isFirstMessage: false,
           })
         }
       >
@@ -333,7 +333,14 @@ export const ChatCard = React.memo(
               {item.agent_name}
             </Text>
             <View className="flex flex-row gap-2">
-              {user?.id === item.last_message_sender_id &&
+              {item.last_message_pending ? (
+                <Image
+                  source={icons.clock}
+                  tintColor={"#666876"}
+                  className="size-5"
+                />
+              ) : (
+                item.last_message_sender_role === "user" &&
                 (item.last_message_status === "sent" ? (
                   <Image
                     source={icons.tick}
@@ -350,7 +357,8 @@ export const ChatCard = React.memo(
                     }
                     className="size-5"
                   />
-                ))}
+                ))
+              )}
               <Text
                 className="text-black-200 font-rubik text-sm"
                 numberOfLines={1}
@@ -383,7 +391,7 @@ export const EmptyRowCard = () => {
   return (
     <View className="bg-white flex flex-row gap-4 p-4 h-[10rem] w-full max-w-[30rem] shadow-zinc-100 shadow-md rounded-3xl">
       <Image
-        source={images.noResult}
+        source={images.no_result}
         className="h-full w-[7.5rem] rounded-2xl"
       />
       <View className="flex flex-col gap-4 justify-center w-3/5">
