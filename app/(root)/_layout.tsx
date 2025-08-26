@@ -6,20 +6,29 @@ import { useEffect } from "react";
 import { ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NetInfo, { NetInfoSubscription } from "@react-native-community/netinfo";
+import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
 const AppLayout = () => {
   const { userLoading, user, isLoggedIn } = useUserStore();
+  const { setInternetStatus } = useAppStore();
   const { fetchWishlistPropertyIds } = useWishlistStore();
-  const { start, stop, fetchConversationOverview, activeConversationId } =
-    useChatStore();
+  const {
+    start,
+    stop,
+    fetchConversationOverview,
+    activeConversationId,
+    changeChatBusConversationId,
+  } = useChatStore();
   useEffect(() => {
     let unsubscribe: NetInfoSubscription;
     (async () => {
       if (user) {
         unsubscribe = NetInfo.addEventListener((state) => {
           if (state.isConnected) {
+            setInternetStatus("online");
             start(user.id, activeConversationId);
           } else {
+            setInternetStatus("offline");
             stop();
           }
         });
@@ -37,6 +46,10 @@ const AppLayout = () => {
       stop();
     };
   }, [user]);
+
+  useEffect(() => {
+    changeChatBusConversationId(activeConversationId);
+  }, [activeConversationId]);
 
   if (userLoading) {
     return (

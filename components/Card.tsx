@@ -299,6 +299,35 @@ export const ReviewCard = React.memo(
   }
 );
 
+export const LoadingChatCard = () => {
+  return (
+    <View className="flex flex-row justify-between items-center w-full mt-7 h-fit relative">
+      {/* Left section */}
+      <View className="flex flex-row gap-4 w-2/3">
+        {/* Avatar */}
+        <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full bg-primary-200" />
+
+        {/* Name + Last message */}
+        <View className="flex flex-col justify-between py-1 flex-1">
+          <View className="h-5 w-32 rounded-md bg-primary-200 mb-2" />
+          <View className="flex flex-row gap-2">
+            <View className="size-5 rounded-full bg-primary-200" />
+            <View className="h-4 w-24 rounded-md bg-primary-200" />
+          </View>
+        </View>
+      </View>
+
+      {/* Right section */}
+      <View className="flex flex-col justify-between items-end absolute right-0 h-full">
+        <View className="rounded-full size-7 bg-primary-200" />
+        <View className="flex flex-1 flex-row items-end">
+          <View className="h-3 w-12 rounded-md bg-primary-200" />
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export const ChatCard = React.memo(
   ({
     item,

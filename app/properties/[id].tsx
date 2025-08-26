@@ -22,10 +22,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import images from "@/constants/images";
 import icons from "@/constants/icons";
 import { facilities } from "@/constants/data";
-import { ReviewCard } from "@/components/Card";
+import { LoadingReviewCard, ReviewCard } from "@/components/Card";
 import { Button } from "@/components/Button";
 import { useSupabase } from "@/lib/useSupabase";
-import { ReviewModal } from "@/components/FilterModal";
 import { useGlobalContext } from "@/lib/global-provider";
 import Animated, {
   SharedValue,
@@ -33,14 +32,12 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-// import { getConversationByAgent } from "@/lib/database/localStore";
 import PagerView from "react-native-pager-view";
-// import MyMap from "@/components/MyMap";
 import { LikeButton } from "@/components/Button";
 import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 import { useChatStore } from "@/lib/zustand/store/useChatStore";
+import Modal from "react-native-modal";
+import { getConversation } from "@/lib/database/localStore";
 
 const PropertySpec = ({
   icon,
@@ -168,6 +165,12 @@ const IndicatorItem = ({
   );
 };
 
+// const PropertyShareModal = React.memo(() => {
+//   return(
+
+//   )
+// })
+
 const Property = () => {
   const pagerViewRef = useRef<PagerView>(null);
   const currentPage = useSharedValue(0);
@@ -176,6 +179,7 @@ const Property = () => {
   const { bottomSheetModalRef } = useGlobalContext();
   const { setActiveConversationData } = useChatStore();
   const { wishlistIds } = useWishlistStore();
+  const [isConversationLoading, setIsConversationLoading] = useState(false);
 
   const { data: propertyDetail, loading } = useSupabase({
     fn: getPropertyDetail,
@@ -184,15 +188,36 @@ const Property = () => {
     },
   });
 
-  const handleOpenChat = useCallback(() => {
-    setActiveConversationData({
-      conversation_id: "",
-      newConversation: true,
-      agent_avatar: propertyDetail?.data?.agent_avatar.url,
-      agent_name: propertyDetail?.data?.agent_name,
-      agent_id: propertyDetail?.data?.agent_id,
-    });
-
+  const handleOpenChat = useCallback(async () => {
+    if (propertyDetail?.data) {
+      setIsConversationLoading(true);
+      // console.log(propertyDetail.data.agent_id);
+      const conversationDetail = await getConversation<{
+        conversation_id: string;
+      }>(["conversation_id"], {
+        agent_id: propertyDetail.data.agent_id,
+      });
+      if (conversationDetail.length > 0) {
+        setActiveConversationData({
+          conversation_id: conversationDetail[0].conversation_id,
+          newConversation: false,
+          agent_avatar: propertyDetail?.data?.agent_avatar.url,
+          agent_name: propertyDetail?.data?.agent_name,
+          agent_id: propertyDetail?.data?.agent_id,
+          avatar_last_update: propertyDetail?.data?.agent_avatar.lastUpdate,
+        });
+      } else {
+        setActiveConversationData({
+          conversation_id: "",
+          newConversation: true,
+          agent_avatar: propertyDetail?.data?.agent_avatar.url,
+          agent_name: propertyDetail?.data?.agent_name,
+          agent_id: propertyDetail?.data?.agent_id,
+          avatar_last_update: propertyDetail?.data?.agent_avatar.lastUpdate,
+        });
+      }
+    }
+    setIsConversationLoading(false);
     router.push(`/chat/conversation`);
   }, [propertyDetail]);
 
@@ -354,9 +379,13 @@ const Property = () => {
                       </Text>
                     </View>
                     <View className="flex flex-row gap-5 items-center justify-end flex-1">
-                      <TouchableOpacity onPress={handleOpenChat}>
-                        <Image source={icons.chat} className="size-8" />
-                      </TouchableOpacity>
+                      {isConversationLoading ? (
+                        <ActivityIndicator className="size-10 text-primary-300" />
+                      ) : (
+                        <TouchableOpacity onPress={handleOpenChat}>
+                          <Image source={icons.chat} className="size-8" />
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity>
                         <Image source={icons.phone} className="size-8" />
                       </TouchableOpacity>
@@ -375,9 +404,9 @@ const Property = () => {
                 <View className="flex flex-row flex-wrap gap-3 mt-2">
                   {propertyDetail?.data?.facilities.map((item, i) => (
                     <FacilitySpecs
-                      item={facilities.find(
-                        (facility) => facility.title === item
-                      )}
+                      item={
+                        facilities.find((facility) => facility.title === item)!
+                      }
                       key={i}
                     />
                   ))}
@@ -467,10 +496,7 @@ const Property = () => {
                   {propertyDetail ? (
                     <ReviewCard data={propertyDetail.data?.top_reviews[0]} />
                   ) : (
-                    <ActivityIndicator
-                      size={25}
-                      className="text-xl text-primary-300"
-                    />
+                    <LoadingReviewCard />
                   )}
                 </View>
               </View>
@@ -489,7 +515,6 @@ const Property = () => {
           </View>
         </View>
       )}
-      <ReviewModal />
     </SafeAreaView>
   );
 };

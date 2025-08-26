@@ -10,6 +10,7 @@ import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { simpleFormatTimestamp } from "@/utils";
 import {
   getConversation,
+  getLastKnownMessageTime,
   insertConversation,
   markConversationRead,
   Message,
@@ -18,6 +19,60 @@ import { useChatStore } from "@/lib/zustand/store/useChatStore";
 import { upsertConversation } from "@/lib/supabase";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import { EmptyChatCard } from "@/components/NoResult";
+
+const LoadingAgentMessage = () => (
+  <View className="w-full flex flex-col items-end mt-7">
+    <View className="max-w-[80%] flex flex-row gap-2 rounded-[1rem] bg-primary-100 px-5 py-4 items-end">
+      {/* timestamp placeholder */}
+      <View className="h-full flex flex-row justify-end">
+        <View className="h-3 w-6 bg-gray-200/40 rounded-md" />
+      </View>
+      {/* message text placeholder */}
+      <View className="h-5 w-40 bg-gray-200/40 rounded-md" />
+    </View>
+  </View>
+);
+
+// Skeleton bubble for user (right side)
+const LoadingUserMessage = () => (
+  <View className="w-full flex flex-col items-start mt-7">
+    <View className="max-w-[80%] flex flex-row-reverse gap-2 rounded-[1rem] bg-primary-300 px-5 py-4 items-end">
+      {/* message text placeholder */}
+      <View className="h-5 w-32 bg-gray-200/40 rounded-md" />
+      {/* timestamp + tick placeholder */}
+      <View className="flex flex-row gap-1 items-start justify-end h-full">
+        <View className="size-4 rounded-full bg-gray-200/40" />
+        <View className="h-3 w-6 bg-gray-200/40 rounded-md" />
+      </View>
+    </View>
+  </View>
+);
+
+// Main loader: show 5–6 skeleton messages in random order
+export const LoadingChatSkeleton = () => {
+  // array of 6 messages, randomly "agent" or "user"
+  const placeholders = [
+    "agent",
+    "user",
+    "agent",
+    "agent",
+    "user",
+    "agent",
+    "user",
+  ];
+
+  return (
+    <View className="px-4">
+      {placeholders.map((type, idx) =>
+        type === "agent" ? (
+          <LoadingAgentMessage key={idx} />
+        ) : (
+          <LoadingUserMessage key={idx} />
+        )
+      )}
+    </View>
+  );
+};
 
 const HeaderComponent = React.memo(() => {
   const { activeConversationData } = useChatStore();
@@ -66,6 +121,7 @@ const FullChat = () => {
     setActiveConversationId,
     fetchNewConversation,
     updateWithOrderChange,
+    updateWithoutOrderChange,
     bus,
   } = useChatStore();
   const { user } = useUserStore();
@@ -84,13 +140,34 @@ const FullChat = () => {
   useEffect(() => {
     (async () => {
       if (activeConversationData.conversation_id !== "") {
+        updateWithoutOrderChange({
+          unread_count: 0,
+          conversation_id: activeConversationData.conversation_id,
+        });
+        const last_message_time = await getLastKnownMessageTime(
+          activeConversationData.conversation_id
+        );
+        if (last_message_time)
+          await markConversationRead(
+            activeConversationData.conversation_id,
+            last_message_time
+          );
+        await bus.syncReadStatus(
+          activeConversationData.conversation_id,
+          activeConversationData.agent_id
+        );
         await markConversationRead(
           activeConversationData.conversation_id,
           new Date().toISOString()
         );
       }
     })();
-  }, [activeConversationData]);
+    // console.log(uuidv4());
+
+    return () => {
+      setActiveConversationId(null);
+    };
+  }, []);
 
   const handleMessage = useCallback(
     async (m?: string) => {
@@ -98,71 +175,62 @@ const FullChat = () => {
       if ((text && text.trim().length > 0) || m) {
         if (activeConversationData.newConversation && user) {
           setInitialLoading(true);
-          const conversationDetail = await getConversation(
-            ["conversation_id"],
-            {
+          const conversationId = await upsertConversation({
+            data: {
               agent_id: activeConversationData.agent_id,
-            }
-          );
-          if (conversationDetail.length === 0) {
-            const conversationId = await upsertConversation({
-              data: {
-                agent_id: activeConversationData.agent_id,
-                user_id: user.id,
-              },
+              user_id: user.id,
+            },
+          });
+
+          if (conversationId) {
+            await insertConversation({
+              agent_avatar: activeConversationData.agent_avatar,
+              agent_id: activeConversationData.agent_id,
+              agent_name: activeConversationData.agent_name,
+              avatar_last_update: activeConversationData.avatar_last_update,
+              conversation_id: conversationId.id,
             });
-            if (conversationId) {
-              await insertConversation({
-                agent_avatar: activeConversationData.agent_avatar,
-                agent_id: activeConversationData.agent_id,
-                agent_name: activeConversationData.agent_name,
-                avatar_last_update: activeConversationData.avatar_last_update,
-                conversation_id: conversationId.id,
-              });
-              tempConversationId = conversationId.id;
-              updateActiveConversationData({
-                conversation_id: conversationId.id,
-                newConversation: false,
-              });
-              setActiveConversationId(conversationId.id);
-              setInitialLoading(false);
-            }
+            tempConversationId = conversationId.id;
+            updateActiveConversationData({
+              conversation_id: conversationId.id,
+              newConversation: false,
+            });
+            setActiveConversationId(conversationId.id);
+            setInitialLoading(false);
+            await fetchNewConversation(
+              tempConversationId || activeConversationData.conversation_id
+            );
           }
         }
-        console.log(new Date().toISOString());
-        const msg = {
-          local_id: uuidv4(),
-          content_type: "text/plain",
-          body: (text || m) ?? "",
-          conversation_id:
-            tempConversationId || activeConversationData.conversation_id,
-          created_at: new Date().toISOString(),
-          status: "sent",
-          pending: 1 as 0 | 1,
-          sender_role: "user" as "user" | "agent",
-        };
-        if (activeConversationData.newConversation) {
-          await fetchNewConversation(
-            tempConversationId || activeConversationData.conversation_id
-          );
-        }
-        addMessage(msg);
-        updateWithOrderChange({
-          last_message: msg.body,
-          last_message_pending: 1,
-          last_message_content_type: msg.content_type,
-          last_message_status: msg.status,
-          last_message_sender_role: msg.sender_role,
-          conversation_id:
-            tempConversationId || activeConversationData.conversation_id,
-        });
-        setText("");
-        await bus.sendMessage({
-          ...msg,
-          receiver_id: activeConversationData.agent_id,
-          sender_id: "",
-        });
       }
+      const msg = {
+        local_id: uuidv4(),
+        content_type: "text/plain",
+        body: (text || m) ?? "",
+        conversation_id:
+          tempConversationId || activeConversationData.conversation_id,
+        created_at: new Date().toISOString(),
+        status: "sent",
+        pending: 1 as 0 | 1,
+        sender_role: "user" as "user" | "agent",
+      };
+      addMessage(msg);
+      updateWithOrderChange({
+        last_message: msg.body,
+        last_message_pending: 1,
+        last_message_time: msg.created_at,
+        last_message_content_type: msg.content_type,
+        last_message_status: msg.status,
+        last_message_sender_role: msg.sender_role,
+        conversation_id:
+          tempConversationId || activeConversationData.conversation_id,
+      });
+      setText("");
+      await bus.sendMessage({
+        ...msg,
+        receiver_id: activeConversationData.agent_id,
+        sender_id: "",
+      });
     },
     [activeConversationData, text]
   );
@@ -226,7 +294,13 @@ const FullChat = () => {
         data={Array.from(messages?.values() ?? [])}
         keyExtractor={(item) => item.local_id}
         renderItem={renderItem}
-        ListEmptyComponent={<EmptyChatCard handleMessage={handleMessage} />}
+        ListEmptyComponent={
+          loadingMessages ? (
+            <LoadingChatSkeleton />
+          ) : (
+            <EmptyChatCard handleMessage={handleMessage} />
+          )
+        }
         inverted={true}
         contentContainerClassName="pt-5"
       />

@@ -63,7 +63,7 @@ interface MessageHandlers {
     range: [number, number]
   ) => Promise<void>;
   updateMessage: (localId: string, update: Partial<Message>) => void;
-  setActiveConversationId: (conversationId: string) => void;
+  setActiveConversationId: (conversationId: string | null) => void;
   emptyMessages: () => void;
 }
 
@@ -74,10 +74,11 @@ interface ChatHandler {
   updateActiveConversationData: (
     update: Partial<ActiveConversationData>
   ) => void;
+  changeChatBusConversationId: (conversation_id: string | null) => void;
 }
 
 const initialState: ChatState = {
-  conversationOverview: new Map(),
+  conversationOverview: new Map<string, ConversationOverviewReturnType>(),
   conversationDisplayOrder: [],
   conversationtLoading: false,
   messages: new Map<string, Message>(),
@@ -118,9 +119,9 @@ export const useChatStore = create<
   deleteConversationOverview: (conversationId: string) =>
     set((state) => {
       const newOverview = new Map(state.conversationOverview);
-      const newOrder = state.conversationDisplayOrder;
+      let newOrder = state.conversationDisplayOrder;
       newOverview.delete(conversationId);
-      newOrder.filter((item) => item !== conversationId);
+      newOrder = newOrder.filter((item) => item !== conversationId);
       return {
         ...state,
         conversationDisplayOrder: newOrder,
@@ -151,14 +152,14 @@ export const useChatStore = create<
     set((state) => {
       const { conversation_id, ...updates } = updateOverview;
       const newOverview = new Map(state.conversationOverview);
-      const newOrder = state.conversationDisplayOrder;
+      let newOrder = state.conversationDisplayOrder;
       const existingOverview = state.conversationOverview.get(conversation_id!);
       if (existingOverview) {
         newOverview.set(conversation_id!, {
           ...existingOverview,
           ...updates,
         });
-        newOrder.filter((item) => item !== conversation_id);
+        newOrder = newOrder.filter((item) => item !== conversation_id);
         newOrder.unshift(conversation_id!);
       }
       return {
@@ -248,6 +249,7 @@ export const useChatStore = create<
       });
       return {
         ...state,
+        loadingMessages: false,
         messages: newMap,
       };
     });
@@ -277,7 +279,7 @@ export const useChatStore = create<
       };
     });
   },
-  setActiveConversationId: (conversationId: string) => {
+  setActiveConversationId: (conversationId: string | null) => {
     set((state) => ({ ...state, activeConversationId: conversationId }));
   },
   updateMessage: (localId: string, update: Partial<Message>) => {
@@ -369,11 +371,12 @@ export const useChatStore = create<
             last_message_status: "sent",
             last_message_pending: 0,
           });
-
-          get().updateMessage(msgSync.local_id, {
-            pending: 0,
-            status: "sent",
-          });
+          if (msgSync.conversation_id === get().activeConversationId) {
+            get().updateMessage(msgSync.local_id, {
+              pending: 0,
+              status: "sent",
+            });
+          }
         }
       )
       .on(
@@ -410,4 +413,6 @@ export const useChatStore = create<
       started: false,
     });
   },
+  changeChatBusConversationId: (conversation_id: string | null) =>
+    get().bus.updateActiveConversationId(conversation_id),
 }));

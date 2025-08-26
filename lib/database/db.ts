@@ -42,6 +42,15 @@ export const initializeDatabase = async () => {
     `);
 
     await db.execAsync(`
+        create table if not exists pending_status_syncs (
+          local_id text primary key,
+          conversation_id text not null,
+          status text not null,
+          ack_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+    await db.execAsync(`
         create index if not exists idx_messages_conv_time on Messages(conversation_id, created_at);
     `);
   }

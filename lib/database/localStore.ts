@@ -533,3 +533,80 @@ export async function getLastKnownMessageTime(
     return null;
   }
 }
+
+export async function getLastReadMessageTime(
+  conversation_id: string
+): Promise<string | null> {
+  const db = getDb();
+  try {
+    const res = await db.getAllAsync(
+      `
+      select last_read_at from read_state where conversation_id=?;
+    `,
+      [conversation_id]
+    );
+    const rows = res as { last_read_at: string }[];
+    return rows[0].last_read_at ?? null;
+  } catch (error) {
+    console.error("Failed to get last read message time: ", error);
+    return null;
+  }
+}
+
+export async function queuePendingStatusSync(
+  conversation_id: string,
+  local_id: string,
+  status: string
+) {
+  const db = getDb();
+  try {
+    const query = `
+      INSERT OR REPLACE INTO pending_status_syncs (
+        local_id,
+        conversation_id,
+        status
+      ) VALUES (?, ?, ?)
+    `;
+    db.runAsync(query, [local_id, conversation_id, status]);
+  } catch (error) {
+    console.error("Failed to queue pending status: ", error);
+    throw error;
+  }
+}
+
+export async function fetchQueuedPendingStatusSync(conversation_id: string) {
+  const db = getDb();
+  try {
+    const res = await db.getAllAsync(
+      `
+      SELECT * FROM pending_status_syncs WHERE conversation_id=?;
+    `,
+      [conversation_id]
+    );
+    const row = res as {
+      local_id: string;
+      conversation_id: string;
+      status: string;
+      ack_at: string;
+    }[];
+
+    return row;
+  } catch (error) {
+    console.error("Failed to fetch queued pending status: ", error);
+    throw error;
+  }
+}
+
+export async function deleteQueuedPendingStatus(conversation_id: string) {
+  const db = getDb();
+  try {
+    const query = `
+      DELETE FROM pending_status_syncs WHERE conversation_id=?
+    `;
+
+    db.runAsync(query, [conversation_id]);
+  } catch (error) {
+    console.error("Failed to delete queued pending status: ", error);
+    throw error;
+  }
+}

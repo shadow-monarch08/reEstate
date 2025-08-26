@@ -2,7 +2,7 @@ import { View, Text, FlatList, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
-import { ChatCard } from "@/components/Card";
+import { ChatCard, LoadingChatCard } from "@/components/Card";
 import { router } from "expo-router";
 import {
   ActiveConversationData,
@@ -10,30 +10,53 @@ import {
 } from "@/lib/zustand/store/useChatStore";
 import { NoResult } from "@/components/NoResult";
 import images from "@/constants/images";
+import { useCallback } from "react";
 
 const Chat = () => {
-  const { conversationOverview, setActiveConversationData } = useChatStore();
+  const {
+    conversationOverview,
+    conversationDisplayOrder,
+    setActiveConversationData,
+    conversationtLoading,
+  } = useChatStore();
   const handelCardPress = (item: ActiveConversationData) => {
     setActiveConversationData(item);
     router.push(`/chat/conversation`);
   };
 
-  return (
-    <SafeAreaView className="bg-accent-100 min-h-full">
-      <FlatList
-        data={Array.from(conversationOverview?.values())}
-        keyExtractor={(item) => item.agent_id}
-        className="px-5"
-        renderItem={({ item }) => (
-          <ChatCard handlePress={handelCardPress} item={item} />
-        )}
-        ListEmptyComponent={
+  const renderLoadingItem = useCallback(
+    () =>
+      conversationtLoading ? (
+        <View className="mt-5 flex flex-row gap-5 flex-wrap">
+          {[...Array(4)].map((_, i) => (
+            <LoadingChatCard key={i} />
+          ))}
+        </View>
+      ) : (
+        <View className="flex justify-center items-center flex-1">
           <NoResult
             title="No Conversation"
             subTitle="Connect and chat with agents of your choice."
             image={images.no_chat_result}
           />
-        }
+        </View>
+      ),
+    [conversationtLoading]
+  );
+
+  return (
+    <SafeAreaView className="bg-accent-100 min-h-full">
+      <FlatList
+        data={conversationDisplayOrder}
+        keyExtractor={(item) => item}
+        className="px-5"
+        renderItem={({ item }) => (
+          <ChatCard
+            handlePress={handelCardPress}
+            item={conversationOverview.get(item)!}
+          />
+        )}
+        ListEmptyComponent={renderLoadingItem}
         ListHeaderComponentClassName="pt-7 mb-5"
         ListHeaderComponent={
           <View>
