@@ -13,11 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { login } from "@/lib/supabase";
-import { useGlobalContext } from "@/lib/global-provider";
 import { Redirect } from "expo-router";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 const SignIn = () => {
-  const { refetch, isLoggedIn, loading } = useGlobalContext();
+  const { isLoggedIn, fetchUser, userLoading } = useUserStore();
   useEffect(() => {
     GoogleSignin.configure({
       // scopes: ["https://www.googleapis.com/auth/drive"],
@@ -36,7 +36,7 @@ const SignIn = () => {
     try {
       const result = await login();
       if (!result) {
-        refetch();
+        fetchUser();
       } else {
         Alert.alert("Error", "Login Failed");
       }
@@ -73,7 +73,7 @@ const SignIn = () => {
           <TouchableOpacity
             className="shadow-md shadow-zinc-400 w-full h-fit rounded-full py-5 bg-white mt-4"
             onPress={handleLogin}
-            disabled={loading}
+            disabled={userLoading}
           >
             <View className="flex flex-row justify-center items-center gap-3">
               <Image

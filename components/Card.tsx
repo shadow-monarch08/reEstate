@@ -7,7 +7,12 @@ import {
   ConversationOverviewReturnType,
   PropertyReturnType,
 } from "@/lib/supabase";
-import { useGlobalContext } from "@/lib/global-provider";
+import Animated, {
+  Layout,
+  LinearTransition,
+  ZoomIn,
+  ZoomOut,
+} from "react-native-reanimated";
 import { timeSince, formatTimestamp } from "@/utils";
 import { LikeButton } from "./Button";
 import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
@@ -301,7 +306,7 @@ export const ReviewCard = React.memo(
 
 export const LoadingChatCard = () => {
   return (
-    <View className="flex flex-row justify-between items-center w-full mt-7 h-fit relative">
+    <View className="flex flex-row justify-between items-center w-full mt-4 h-fit relative">
       {/* Left section */}
       <View className="flex flex-row gap-4 w-2/3">
         {/* Avatar */}
@@ -309,7 +314,7 @@ export const LoadingChatCard = () => {
 
         {/* Name + Last message */}
         <View className="flex flex-col justify-between py-1 flex-1">
-          <View className="h-5 w-32 rounded-md bg-primary-200 mb-2" />
+          <View className="h-5 w-32 rounded-md bg-primary-200" />
           <View className="flex flex-row gap-2">
             <View className="size-5 rounded-full bg-primary-200" />
             <View className="h-4 w-24 rounded-md bg-primary-200" />
@@ -336,82 +341,90 @@ export const ChatCard = React.memo(
     handlePress: (param: ActiveConversationData) => void;
   }) => {
     return (
-      <TouchableOpacity
-        activeOpacity={0.6}
-        className="flex flex-row justify-between items-center w-full mt-7 h-fit relative"
-        onPress={() =>
-          handlePress({
-            agent_avatar: item.agent_avatar,
-            avatar_last_update: item.avatar_last_update,
-            conversation_id: item.conversation_id,
-            agent_name: item.agent_name,
-            agent_id: item.agent_id,
-          })
-        }
+      <Animated.View
+        style={{
+          marginTop: 28,
+          width: "100%",
+        }}
+        layout={LinearTransition.duration(200)}
       >
-        <View className="flex flex-row gap-4 w-2/3">
-          <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full">
-            <Image
-              src={item.agent_avatar}
-              className="h-16 w-20"
-              resizeMode="cover"
-            />
-          </View>
-          <View className="flex flex-col justify-between py-1">
-            <Text className="text-black-300 font-rubik-medium text-lg">
-              {item.agent_name}
-            </Text>
-            <View className="flex flex-row gap-2">
-              {item.last_message_pending ? (
-                <Image
-                  source={icons.clock}
-                  tintColor={"#666876"}
-                  className="size-5"
-                />
-              ) : (
-                item.last_message_sender_role === "user" &&
-                (item.last_message_status === "sent" ? (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          className="flex flex-row justify-between items-center w-full h-fit relative"
+          onPress={() =>
+            handlePress({
+              agent_avatar: item.agent_avatar,
+              avatar_last_update: item.avatar_last_update,
+              conversation_id: item.conversation_id,
+              agent_name: item.agent_name,
+              agent_id: item.agent_id,
+            })
+          }
+        >
+          <View className="flex flex-row gap-4 w-2/3">
+            <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full">
+              <Image
+                src={item.agent_avatar}
+                className="h-16 w-20"
+                resizeMode="cover"
+              />
+            </View>
+            <View className="flex flex-col justify-between py-1">
+              <Text className="text-black-300 font-rubik-medium text-lg">
+                {item.agent_name}
+              </Text>
+              <View className="flex flex-row gap-2">
+                {item.last_message_pending ? (
                   <Image
-                    source={icons.tick}
+                    source={icons.clock}
                     tintColor={"#666876"}
                     className="size-5"
                   />
                 ) : (
-                  <Image
-                    source={icons.tick_double}
-                    tintColor={
-                      item.last_message_status === "received"
-                        ? "#666876"
-                        : "#0061FF"
-                    }
-                    className="size-5"
-                  />
-                ))
-              )}
-              <Text
-                className="text-black-200 font-rubik text-sm"
-                numberOfLines={1}
-              >
-                {item.last_message}
+                  item.last_message_sender_role === "user" &&
+                  (item.last_message_status === "sent" ? (
+                    <Image
+                      source={icons.tick}
+                      tintColor={"#666876"}
+                      className="size-5"
+                    />
+                  ) : (
+                    <Image
+                      source={icons.tick_double}
+                      tintColor={
+                        item.last_message_status === "received"
+                          ? "#666876"
+                          : "#0061FF"
+                      }
+                      className="size-5"
+                    />
+                  ))
+                )}
+                <Text
+                  className="text-black-200 font-rubik text-sm"
+                  numberOfLines={1}
+                >
+                  {item.last_message}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View className="flex flex-col justify-between items-end absolute right-0 h-full">
+            {item.unread_count ?? 0 > 0 ? (
+              <View className="rounded-full bg-primary-300 size-7 flex items-center justify-center">
+                <Text className="font-rubik-medium text-white text-xs mt-1">
+                  {item.unread_count}
+                </Text>
+              </View>
+            ) : null}
+            <View className="flex flex-1 flex-row items-end">
+              <Text className="font-rubik-medium text-xs text-black-200">
+                {formatTimestamp(item.last_message_time)}
               </Text>
             </View>
           </View>
-        </View>
-        <View className="flex flex-col justify-between items-end absolute right-0 h-full">
-          {item.unread_count ?? 0 > 0 ? (
-            <View className="rounded-full bg-primary-300 size-7 flex items-center justify-center">
-              <Text className="font-rubik-medium text-white text-xs mt-1">
-                {item.unread_count}
-              </Text>
-            </View>
-          ) : null}
-          <View className="flex flex-1 flex-row items-end">
-            <Text className="font-rubik-medium text-xs text-black-200">
-              {formatTimestamp(item.last_message_time)}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Animated.View>
     );
   }
 );

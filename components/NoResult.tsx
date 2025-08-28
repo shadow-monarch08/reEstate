@@ -7,7 +7,6 @@ import {
 } from "react-native";
 import React from "react";
 import images from "@/constants/images";
-import icons from "@/constants/icons";
 
 export const NoResult = ({
   imageClassName = "w-11/12 h-56",
@@ -21,7 +20,7 @@ export const NoResult = ({
   image?: ImageSourcePropType;
 }) => {
   return (
-    <View className="flex flex-col gap-2 items-center justify-center mt-6">
+    <View className="flex-1 flex-col gap-2 items-center justify-center mt-6">
       <Image
         className={`${imageClassName}`}
         source={image}

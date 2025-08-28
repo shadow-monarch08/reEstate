@@ -73,7 +73,7 @@ export const useSupabase = <T, P extends Record<string, ParamValue>>({
             setHasMore(false);
           }
 
-          if (typeof resultTyped.count === "number") {
+          if (typeof resultTyped.count === "number" && !append) {
             setCount(resultTyped.count);
           }
 
@@ -103,7 +103,7 @@ export const useSupabase = <T, P extends Record<string, ParamValue>>({
         setLoadingMore(false);
       }
     },
-    [fn, pagination]
+    [fn, pagination, count]
   );
 
   useEffect(() => {

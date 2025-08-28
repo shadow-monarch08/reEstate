@@ -10,7 +10,7 @@ import {
   LayoutChangeEvent,
 } from "react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import MapView, { MapType, Marker, Region } from "react-native-maps"; // remove PROVIDER_GOOGLE import if not using Google Maps
+import MapView, { Marker, Region } from "react-native-maps"; // remove PROVIDER_GOOGLE import if not using Google Maps
 import { SafeAreaView } from "react-native-safe-area-context";
 import Geolocation from "@react-native-community/geolocation";
 import { useIsFocused } from "@react-navigation/native";
@@ -25,7 +25,7 @@ import {
   PropertyWithinRadiusReturnType,
 } from "@/lib/supabase";
 import { EmptyRowCard, LoadingRowCard, RowCard } from "@/components/Card";
-import { useGlobalContext } from "@/lib/global-provider";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 const CustomPropertyMarker = React.memo(
   ({
@@ -108,6 +108,7 @@ const CustomUserMarker = React.memo(
 );
 
 const Map = () => {
+  const tabBarHeight = useBottomTabBarHeight();
   const [userRegion, setUserRegion] = useState<Region | null>(null);
   const isFocused = useIsFocused();
   const [hasMapLoaded, setHasMapLoaded] = useState<boolean>(false);
@@ -172,7 +173,7 @@ const Map = () => {
     if (mapRef && userRegion) {
       mapRef.current?.animateToRegion(userRegion, 2000);
     }
-  }, []);
+  }, [mapRef, userRegion]);
 
   const handelCardPress = (id: string) => router.push(`/properties/${id}`);
 
@@ -228,7 +229,10 @@ const Map = () => {
       ) : (
         <LoadingMapPageHeader />
       )}
-      <View className="flex-1 relative">
+      <View
+        className="flex-1 relative"
+        style={{ marginBottom: tabBarHeight - 15 }}
+      >
         {isFocused && userRegion && (
           <MapView
             ref={mapRef}
@@ -276,7 +280,7 @@ const Map = () => {
           pagingEnabled
           snapToAlignment="center"
           snapToInterval={width}
-          className="absolute bottom-24 left-0 right-0 py-4"
+          className="absolute bottom-14 left-0 right-0 py-4"
         />
       </View>
     </SafeAreaView>

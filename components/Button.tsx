@@ -74,6 +74,7 @@ export const LikeButton = ({
 }) => {
   const { updateWishlistProperty } = useWishlistStore();
   const { user } = useUserStore();
+  const [disabled, setDisabled] = useState(false);
   const animatedHeartFilled = useAnimatedStyle(() => ({
     transform: [{ scale: withTiming(isWishListed ? 1 : 0, { duration: 200 }) }],
   }));
@@ -82,19 +83,23 @@ export const LikeButton = ({
       { scale: withTiming(!isWishListed ? 1 : 0, { duration: 200 }) },
     ],
   }));
+  const handlePress = async () => {
+    setDisabled(true);
+    if (user) {
+      await updateWishlistProperty({
+        propertyId: id,
+        userId: user.id,
+        operation: wishlisted ? "delete" : "insert",
+      });
+    }
+    setWishlisted(!wishlisted);
+    setDisabled(false);
+  };
   const [wishlisted, setWishlisted] = useState(isWishListed);
   return (
     <TouchableOpacity
-      onPress={() => {
-        if (user) {
-          updateWishlistProperty({
-            propertyId: id,
-            userId: user.id,
-            operation: wishlisted ? "delete" : "insert",
-          });
-        }
-        setWishlisted(!wishlisted);
-      }}
+      disabled={disabled}
+      onPress={handlePress}
       className="relative size-6"
     >
       <Animated.View

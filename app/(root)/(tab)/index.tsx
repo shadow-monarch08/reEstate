@@ -1,5 +1,4 @@
 import icons from "@/constants/icons";
-import { useGlobalContext } from "@/lib/global-provider";
 import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -16,6 +15,85 @@ import { useSupabase } from "@/lib/useSupabase";
 import { NoResult } from "@/components/NoResult";
 import { SearchButton } from "@/components/Button";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+
+// Function to determine greeting based on time
+function getGreeting() {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "Good Morning 🌅";
+  } else if (hour >= 12 && hour < 17) {
+    return "Good Afternoon ☀️";
+  } else if (hour >= 17 && hour < 21) {
+    return "Good Evening 🌇";
+  } else {
+    return "Good Night 🌙";
+  }
+}
+
+function Greeter() {
+  const [greeting, setGreeting] = useState(getGreeting());
+
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    function scheduleNextUpdate() {
+      const now = new Date();
+      const msUntilNextHour =
+        (60 - now.getMinutes()) * 60 * 1000 -
+        now.getSeconds() * 1000 -
+        now.getMilliseconds();
+
+      return setTimeout(() => {
+        triggerGreetingChange();
+        scheduleNextUpdate();
+      }, msUntilNextHour);
+    }
+
+    const timer = scheduleNextUpdate();
+    return () => clearTimeout(timer);
+  }, []);
+
+  const triggerGreetingChange = () => {
+    opacity.value = withTiming(0, { duration: 400 });
+    translateY.value = withTiming(-20, { duration: 400 }, (finished) => {
+      if (finished) {
+        runOnJS(() => {
+          const newGreeting = getGreeting(); // JS function
+          setGreeting(newGreeting); // safe update
+        })();
+        translateY.value = 20;
+        opacity.value = 0;
+
+        translateY.value = withTiming(0, { duration: 400 });
+        opacity.value = withTiming(1, { duration: 400 });
+      }
+    });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <View className="flex-1 flex flex-row items-center">
+      <Animated.Text
+        className="text-xs text-black-100 font-rubik"
+        style={[animatedStyle]}
+      >
+        {greeting}
+      </Animated.Text>
+    </View>
+  );
+}
 
 export default function Index() {
   const { user } = useUserStore();
@@ -119,9 +197,7 @@ export default function Index() {
                     className="size-14 rounded-full"
                   />
                   <View>
-                    <Text className="text-xs text-black-100 font-rubik">
-                      Good Morning
-                    </Text>
+                    <Greeter />
                     <Text className="font-rubik-medium text-black-300 mt-1 text-base">
                       {user?.full_name}
                     </Text>

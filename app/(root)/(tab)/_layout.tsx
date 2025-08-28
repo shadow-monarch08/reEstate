@@ -4,6 +4,7 @@ import {
   ImageSourcePropType,
   StyleSheet,
   TouchableOpacity,
+  Text,
 } from "react-native";
 import React from "react";
 import icons from "@/constants/icons";
@@ -12,12 +13,14 @@ import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 
 type CustomTabBarButtonProps = BottomTabBarButtonProps & {
   icon: ImageSourcePropType;
+  title: string;
 };
 
 const TabsCustomeIcon = ({
   onPress,
   accessibilityState,
   icon,
+  title,
 }: CustomTabBarButtonProps) => {
   const focused = accessibilityState?.selected;
   return (
@@ -25,18 +28,19 @@ const TabsCustomeIcon = ({
       className="flex-1 items-center justify-center"
       onPress={onPress}
     >
-      <View
-        className={`flex items-center justify-center size-14 rounded-full p-3 ${
-          focused ? "bg-primary-200" : "bg-accent-100"
+      <Image
+        tintColor={focused ? "#0061FF" : "#8C8E98"}
+        source={icon}
+        className="size-7"
+        resizeMode="contain"
+      />
+      <Text
+        className={`font-rubik text-sm ${
+          focused ? "text-primary-300" : "text-black-100"
         }`}
       >
-        <Image
-          tintColor={focused ? "#0061FF" : "#8C8E98"}
-          source={icon}
-          className="size-full"
-          resizeMode="contain"
-        />
-      </View>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 };
@@ -45,19 +49,25 @@ const TabsSpecialIcon = ({
   onPress,
   accessibilityState,
   icon,
-}: CustomTabBarButtonProps) => {
+}: Omit<CustomTabBarButtonProps, "title">) => {
   const focused = accessibilityState?.selected;
   return (
-    <View className="flex-1 relative items-center justify-center ">
-      <View className="bg-accent-100 rounded-full shadow-zinc-100 shadow-xl p-4 absolute bottom-4">
-        <TouchableOpacity onPress={onPress}>
-          <Image
-            tintColor={focused ? "#0061FF" : "#8C8E98"}
-            source={icon}
-            className="size-8"
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
+    <View className="flex-1 relative items-center justify-center rounded-full">
+      <View className="bg-accent-100 rounded-full shadow-zinc-100 shadow-xl absolute bottom-6">
+        <View
+          className={`rounded-full p-4 ${
+            focused ? "bg-primary-300" : "bg-primary-100"
+          }`}
+        >
+          <TouchableOpacity onPress={onPress}>
+            <Image
+              tintColor={focused ? "#FBFBFD" : "#0061ff"}
+              source={icon}
+              className="size-9"
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -76,7 +86,11 @@ const TabsLayout = () => {
         options={{
           title: "Home",
           tabBarButton: (props) => (
-            <TabsCustomeIcon {...props} icon={icons.home_outline} />
+            <TabsCustomeIcon
+              {...props}
+              icon={icons.home_outline}
+              title="Home"
+            />
           ),
           headerShown: false,
         }}
@@ -86,7 +100,7 @@ const TabsLayout = () => {
         options={{
           title: "whishlist",
           tabBarButton: (props) => (
-            <TabsCustomeIcon {...props} icon={icons.heart} />
+            <TabsCustomeIcon {...props} icon={icons.heart} title="Favourite" />
           ),
           headerShown: false,
         }}
@@ -106,7 +120,11 @@ const TabsLayout = () => {
         options={{
           title: "chat",
           tabBarButton: (props) => (
-            <TabsCustomeIcon {...props} icon={icons.chat_outline} />
+            <TabsCustomeIcon
+              {...props}
+              icon={icons.chat_outline}
+              title="Chat"
+            />
           ),
           headerShown: false,
         }}
@@ -116,7 +134,11 @@ const TabsLayout = () => {
         options={{
           title: "Profile",
           tabBarButton: (props) => (
-            <TabsCustomeIcon {...props} icon={icons.profile_outline} />
+            <TabsCustomeIcon
+              {...props}
+              icon={icons.profile_outline}
+              title="Profile"
+            />
           ),
           headerShown: false,
         }}
@@ -128,18 +150,20 @@ const TabsLayout = () => {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: "#FBFBFD",
-    borderWidth: 1.5,
-    borderTopWidth: 1.5,
-    borderTopColor: "#0061FF1A",
-    borderColor: "#0061FF1A",
     height: 60,
     position: "absolute",
-    bottom: 10,
-    marginLeft: 40,
-    marginRight: 40,
     elevation: 6,
-    borderRadius: 40,
-    shadowColor: "#8C8E98",
+    paddingHorizontal: 15,
+    borderTopEndRadius: 25,
+    borderTopStartRadius: 25,
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
 });
 

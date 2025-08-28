@@ -8,6 +8,7 @@ import map from "@/assets/images/map.png";
 import new_york from "@/assets/images/new-york.png";
 import no_result from "@/assets/images/no-result.png";
 import no_chat_result from "@/assets/images/no_chat_result.png";
+import no_data_found from "@/assets/images/no_data_found.png";
 import onboarding from "@/assets/images/onboarding.png";
 import splash_icon from "@/assets/images/splash-icon.png";
 import splash from "@/assets/images/splash.png";
@@ -24,6 +25,7 @@ export default {
   new_york,
   no_result,
   no_chat_result,
+  no_data_found,
   onboarding,
   splash_icon,
   splash,

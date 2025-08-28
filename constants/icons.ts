@@ -22,6 +22,7 @@ import dog from "@/assets/icons/dog.png";
 import dumbell from "@/assets/icons/dumbell.png";
 import duplex from "@/assets/icons/duplex.png";
 import edit from "@/assets/icons/edit.png";
+import expand from "@/assets/icons/expand.png";
 import filter from "@/assets/icons/filter.png";
 import google from "@/assets/icons/google.png";
 import heart_filled from "@/assets/icons/heart-filled.png";
@@ -56,6 +57,7 @@ import search_filled from "@/assets/icons/search-filled.png";
 import search_outline from "@/assets/icons/search-outline.png";
 import send from "@/assets/icons/send.png";
 import shield from "@/assets/icons/shield.png";
+import shrink from "@/assets/icons/shrink.png";
 import smiley from "@/assets/icons/smiley.png";
 import star from "@/assets/icons/star.png";
 import studio from "@/assets/icons/studio.png";
@@ -97,6 +99,7 @@ export default {
   dumbell,
   duplex,
   edit,
+  expand,
   filter,
   google,
   heart_filled,
@@ -131,6 +134,7 @@ export default {
   search_outline,
   send,
   shield,
+  shrink,
   smiley,
   star,
   studio,

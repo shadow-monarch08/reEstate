@@ -84,9 +84,14 @@ export interface User {
   full_name: string;
 }
 
-export interface PropertyReturnType {
-  address: string;
+export interface WishlistPropertyReturnType {
   id: string;
+  property: PropertyReturnType;
+}
+
+export interface PropertyReturnType {
+  id: string;
+  address: string;
   image: string;
   name: string;
   price: number;
@@ -257,6 +262,16 @@ export const login = async (): Promise<AuthError | null> => {
         provider: "google",
         token: userInfo.data.idToken,
       });
+      if (data.user) {
+        Supabase.from("users").upsert([
+          {
+            user_id: data.user.id,
+            name: data.user.user_metadata.name,
+            email: data.user.user_metadata.email,
+            user_avatar: data.user.user_metadata.avatar_url,
+          },
+        ]);
+      }
       return error;
     }
     return null;
@@ -860,33 +875,37 @@ const buildWishlistQuery = (
   if (!filters) return query;
 
   if (filters.facilities?.length) {
-    query = query.contains("facilities", filters.facilities);
+    query = query.contains("property.facilities", filters.facilities);
   }
 
   if (filters.range?.length === 2) {
-    query = query.gte("price", filters.range[0]).lte("price", filters.range[1]);
+    query = query
+      .gte("property.price", filters.range[0])
+      .lte("property.price", filters.range[1]);
   }
 
   if (filters.areaRange?.length === 2) {
     query = query
-      .gte("area", filters.areaRange[0])
-      .lte("area", filters.areaRange[1]);
+      .gte("property.area", filters.areaRange[0])
+      .lte("property.area", filters.areaRange[1]);
   }
 
   if (filters.propertyType?.length) {
-    query = query.in("type", filters.propertyType);
+    query = query.in("property.type", filters.propertyType);
   }
 
   if (typeof filters.bedroomCount === "number") {
-    query = query.eq("bedrooms", filters.bedroomCount);
+    query = query.eq("property.bedrooms", filters.bedroomCount);
   }
 
   if (typeof filters.bathroomCount === "number") {
-    query = query.eq("bathrooms", filters.bathroomCount);
+    query = query.eq("property.bathrooms", filters.bathroomCount);
   }
 
   if (queryText) {
-    query = query.or(`name.ilike.%${queryText}%,address.ilike.%${queryText}%`);
+    query = query.or(
+      `property.name.ilike.%${queryText}%,property.address.ilike.%${queryText}%`
+    );
   }
 
   return query;
@@ -901,13 +920,32 @@ export const getWishlistProperty = async ({
 }: PropertyParameter & {
   userId: string | undefined;
 }): Promise<{
-  data: Array<PropertyReturnType> | null;
+  data: Array<WishlistPropertyReturnType> | null;
   error: PostgrestError | null;
+  count: number | null;
 }> => {
   try {
-    const baseQuery = Supabase.rpc("get_user_wishlist_properties", {
-      p_user_id: userId,
-    });
+    // const baseQuery = Supabase.rpc("get_user_wishlist_properties", {
+    //   p_user_id: userId,
+    // });
+    const baseQuery = Supabase.from("wishlist")
+      .select(
+        `
+      id,
+      property(
+        id,
+        name,
+        address,
+        price,
+        image,
+        rating
+      )
+      `,
+        {
+          count: "exact",
+        }
+      )
+      .eq("user", userId);
 
     let filters: Filters | undefined;
     if (propFilter && propFilter !== "null") {
@@ -921,21 +959,25 @@ export const getWishlistProperty = async ({
       finalQuery = buildWishlistQuery(finalQuery, filters, query);
     } else if (query && filter && filter !== "All") {
       finalQuery = finalQuery
-        .eq("type", filter)
-        .or(`name.ilike.%${query}%,address.ilike.%${query}%`);
+        .eq("property.type", filter)
+        .or(`property.name.ilike.%${query}%,property.address.ilike.%${query}%`);
     } else if (query && (!filter || filter === "All")) {
       finalQuery = finalQuery.or(
-        `name.ilike.%${query}%,address.ilike.%${query}%`
+        `property.name.ilike.%${query}%,property.address.ilike.%${query}%`
       );
     } else if (!query && filter && filter !== "All") {
-      finalQuery = finalQuery.eq("type", filter);
+      finalQuery = finalQuery.eq("property.type", filter);
     }
 
     // Always apply range
-    finalQuery = finalQuery.range(range[0], range[1]);
+    finalQuery = finalQuery.not("property", "is", null);
+    finalQuery = finalQuery
+      .range(range[0], range[1])
+      .order("created_at", { ascending: true });
 
-    const { data, error } = await finalQuery;
-
+    const { data, error, count } = await finalQuery.overrideTypes<
+      WishlistPropertyReturnType[]
+    >();
     if (error) {
       if (error.code !== "PGRST103") {
         console.error(error);
@@ -943,59 +985,22 @@ export const getWishlistProperty = async ({
       return {
         data: null,
         error,
+        count,
       };
     }
 
     return {
       data: data ?? [],
       error: null,
+      count,
     };
   } catch (err) {
     console.error(err);
     return {
       data: null,
       error: err as PostgrestError,
+      count: null,
     };
-  }
-};
-
-// const sample_data = {
-//   agent_avatar:
-//     "https://images.unsplash.com/photo-1691335053879-02096d6ee2ca?q=60&w=640&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-//   agent_id: "04b257ea-3253-4972-ae7f-628fabc49af4",
-//   agent_name: "Agent 2",
-//   conversation_id: "f965d7d1-e322-417e-a566-dc02cca6599c",
-//   last_message:
-//     "Sure whatever you like rent it anytime you want, all the properties are available. Is there anything else I can help you with?",
-//   last_message_time: "2025-06-09T07:03:03.680662+00:00",
-//   unread_count: 1,
-// };
-export const getConversationUnreceivedMessages = async ({
-  user_id,
-  limit,
-}: {
-  user_id: string | undefined;
-  limit: number;
-}): Promise<Array<ConversationUnreceivedMessagesReturnType> | null> => {
-  try {
-    if (!user_id) {
-      return null;
-    }
-    const { data, error } = await Supabase.rpc(
-      "get_chat_overview_queued_messages_paginated",
-      {
-        p_receiver_id: user_id,
-        p_limit: limit,
-      }
-    ).select("*");
-    if (error) {
-      console.error(error);
-      return null;
-    }
-    return data;
-  } catch (error) {
-    console.error(error);
-    return null;
   }
 };
 

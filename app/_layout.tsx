@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { FilterModal } from "@/components/FilterModal";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
+import { Provider as PaperProvider } from "react-native-paper";
 
 export default function RootLayout() {
   const { fetchUser } = useUserStore();
@@ -39,13 +40,15 @@ export default function RootLayout() {
   if (!fontsLoaded || !isReady) return null;
 
   return (
-    <GestureHandlerRootView>
-      <BottomSheetModalProvider>
-        <GlobalProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-          <FilterModal />
-        </GlobalProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <PaperProvider>
+      <GestureHandlerRootView>
+        <BottomSheetModalProvider>
+          <GlobalProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+            <FilterModal />
+          </GlobalProvider>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </PaperProvider>
   );
 }

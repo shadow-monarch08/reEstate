@@ -35,7 +35,7 @@ const ChatInput = ({
             className="font-rubik text-base flex-1 mt-0.5 text-black-300 break-words max-h-20"
           />
         </View>
-        <View className="flex flex-row items-center gap-3">
+        <View className="flex flex-row items-center gap-7">
           <TouchableOpacity>
             <Image
               source={icons.clip}

@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Filters_small } from "@/components/Filters";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NoResult } from "@/components/NoResult";
@@ -12,7 +12,10 @@ import {
 import { useGlobalContext } from "@/lib/global-provider";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
-import { getWishlistProperty, PropertyReturnType } from "@/lib/supabase";
+import {
+  getWishlistProperty,
+  WishlistPropertyReturnType,
+} from "@/lib/supabase";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
@@ -22,9 +25,11 @@ const ListHeaderComponent = React.memo(
   ({
     handlePress,
     cardType,
+    totalResults,
   }: {
     handlePress: (type: string) => void;
     cardType: "grid" | "list";
+    totalResults: number | null;
   }) => {
     return (
       <View className="mb-1">
@@ -54,7 +59,10 @@ const ListHeaderComponent = React.memo(
           <Search enableFocus={false} />
         </View>
         <Filters_small />
-        <View className="flex flex-row-reverse px-5 mt-5">
+        <View className="px-5 mt-5 flex flex-row justify-between items-center">
+          <Text className="font-rubik-medium text-xl text-black-300">
+            Found {totalResults} Results
+          </Text>
           <View className="flex flex-row gap-4">
             <TouchableOpacity onPress={() => handlePress("grid")}>
               <Image
@@ -94,6 +102,7 @@ const Wishlist = () => {
     data: wishlistProperty,
     fetchMore,
     refetch,
+    count,
     loading,
     loadingMore,
     setData,
@@ -129,10 +138,12 @@ const Wishlist = () => {
     if (operation) {
       if (operation === "delete") {
         setData((prev) => ({
+          count: (prev?.count ?? 0) - 1,
           error: null,
           data:
             prev?.data?.filter(
-              (item: PropertyReturnType) => item.id !== updatedPropertyId
+              (item: WishlistPropertyReturnType) =>
+                item.property.id !== updatedPropertyId
             ) ?? [],
         }));
       } else {
@@ -216,11 +227,17 @@ const Wishlist = () => {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: PropertyReturnType }) =>
+    ({ item }: { item: WishlistPropertyReturnType }) =>
       cardType === "grid" ? (
-        <ColumnCard item={item} onPress={() => handelCardPress(item.id)} />
+        <ColumnCard
+          item={item.property}
+          onPress={() => handelCardPress(item.id)}
+        />
       ) : (
-        <RowCard item={item} onPress={() => handelCardPress(item.id)} />
+        <RowCard
+          item={item.property}
+          onPress={() => handelCardPress(item.id)}
+        />
       ),
     [cardType, wishlistIds]
   );
@@ -244,6 +261,7 @@ const Wishlist = () => {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <ListHeaderComponent
+            totalResults={count ?? 0}
             cardType={cardType}
             handlePress={(type) => setCardType(type as "grid" | "list")}
           />

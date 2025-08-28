@@ -33,13 +33,11 @@ const Chat = () => {
           ))}
         </View>
       ) : (
-        <View className="flex justify-center items-center flex-1">
-          <NoResult
-            title="No Conversation"
-            subTitle="Connect and chat with agents of your choice."
-            image={images.no_chat_result}
-          />
-        </View>
+        <NoResult
+          title="No Conversation"
+          subTitle="Connect and chat with agents of your choice."
+          image={images.no_chat_result}
+        />
       ),
     [conversationtLoading]
   );
@@ -47,7 +45,7 @@ const Chat = () => {
   return (
     <SafeAreaView className="bg-accent-100 min-h-full">
       <FlatList
-        data={conversationDisplayOrder}
+        data={conversationtLoading ? [] : conversationDisplayOrder}
         keyExtractor={(item) => item}
         className="px-5"
         renderItem={({ item }) => (

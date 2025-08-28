@@ -9,7 +9,6 @@ import {
   markMessagePendingClearedByCreatedAt,
   LocalMessage,
   markConversationRead,
-  getConversation,
   updateMessage,
   getMessage,
   getLastReadMessageTime,
@@ -52,7 +51,7 @@ export type PostgrestChangesMessagePayload = {
 };
 
 export type BroadcastAckPayload = {
-  __type: "ack";
+  __type: "ack" | "afterAck";
   conversation_id: string;
   local_id: string;
   server_id?: string | null;
@@ -149,10 +148,10 @@ export class ChatBus extends EventEmitter {
   }
 
   private async _handleBroadcastPayload(payload: any) {
-    if (!payload || !payload.type) return;
-    if (payload.type === "message") {
+    if (!payload || !payload.__type) return;
+    if (payload.__type === "message") {
       await this._onIncomingMessage(payload as BroadcastMessagePayload);
-    } else if (payload.type === "ack" || "ack-2") {
+    } else if (payload.__type === "ack" || "ack-2" || "afrerAck") {
       await this._onAck(
         payload as BroadcastAckPayload | AcknoledgmentAckPayload
       );
@@ -177,6 +176,9 @@ export class ChatBus extends EventEmitter {
       pending: 0,
       status: "sent",
     });
+    console.log("postgre incoming message");
+    // emit incoming event for UIs
+    this.emit("message:incoming", p);
 
     if (p.conversation_id === this.activeCId) {
       await markConversationRead(p.conversation_id, new Date().toISOString());
@@ -214,25 +216,23 @@ export class ChatBus extends EventEmitter {
                 this.activeCId === p.conversation_id ? "read" : "received",
             },
           ]);
-          if (error)
+          if (error) {
             console.error(
               "Error while sycing status to server via postgrest change message: ",
               error
             );
-          await queuePendingStatusSync(
-            p.conversation_id,
-            p.local_id,
-            this.activeCId === p.conversation_id ? "read" : "received"
-          );
+            await queuePendingStatusSync(
+              p.conversation_id,
+              p.local_id,
+              this.activeCId === p.conversation_id ? "read" : "received"
+            );
+          }
         }
       } catch (e) {
         // ignore ack failures - it's best-effort
         console.warn("failed to send ack", e);
       }
     }
-
-    // emit incoming event for UIs
-    this.emit("message:incoming", p);
   }
 
   private async _onIncomingMessage(p: BroadcastMessagePayload) {
@@ -254,6 +254,7 @@ export class ChatBus extends EventEmitter {
       pending: 0,
       status: "sent",
     });
+
     // emit incoming event for UIs
     this.emit("message:incoming", p);
     if (p.conversation_id === this.activeCId) {
@@ -292,16 +293,17 @@ export class ChatBus extends EventEmitter {
                 this.activeCId === p.conversation_id ? "read" : "received",
             },
           ]);
-          if (error)
+          if (error) {
             console.error(
               "Error while sycing status to server via on incoming message: ",
               error
             );
-          await queuePendingStatusSync(
-            p.conversation_id,
-            p.local_id,
-            this.activeCId === p.conversation_id ? "read" : "received"
-          );
+            await queuePendingStatusSync(
+              p.conversation_id,
+              p.local_id,
+              this.activeCId === p.conversation_id ? "read" : "received"
+            );
+          }
         }
       } catch (e) {
         // ignore ack failures - it's best-effort
@@ -317,8 +319,44 @@ export class ChatBus extends EventEmitter {
     if (p.__type === "ack") {
       await markMessagePendingByLocalId(p.local_id, 0);
       this.emit("message:ack", p);
+    } else if (p.__type === "afterAck") {
+      this._onIncomingAck(p);
     } else {
       this.emit("acknowledgment:ack", p);
+    }
+  }
+
+  private async _onIncomingAck(p: BroadcastAckPayload) {
+    if (!this.uid) return;
+
+    await updateMessage({
+      msg: {
+        status: p.status,
+      },
+      checkCondition: {
+        local_id: p.local_id,
+      },
+      conditionOperator: {
+        local_id: "=",
+      },
+    });
+
+    this.emit("message:ack", p);
+
+    try {
+      const ack: AcknoledgmentAckPayload = {
+        __type: "ack-2",
+        local_id: p.local_id,
+        conversation_id: p.conversation_id,
+      };
+      await Supabase.channel(`inbox:user:${p.sender_id}`).send({
+        type: "broadcast",
+        event: "message",
+        payload: ack,
+      });
+    } catch (e) {
+      // Network might be down or channel missing; we'll rely on fallback flush
+      console.warn("acknowledgment ack failed: ", e);
     }
   }
 
@@ -483,14 +521,15 @@ export class ChatBus extends EventEmitter {
     conversation_id: string,
     localChannel: RealtimeChannel
   ) {
+    if (!this.uid) return;
     const messages = await fetchQueuedPendingStatusSync(conversation_id);
     for (const m of messages) {
       const ack: BroadcastAckPayload = {
-        __type: "ack",
+        __type: "afterAck",
         conversation_id: conversation_id,
         local_id: m.local_id,
         server_id: null,
-        sender_id: this.uid!,
+        sender_id: this.uid,
         acked_at: m.ack_at,
         status: m.status,
       };
@@ -504,11 +543,11 @@ export class ChatBus extends EventEmitter {
       if (!ackResult.success) {
         const { data, error } = await Supabase.from(
           "pending_status_sync"
-        ).insert([
+        ).upsert([
           {
             local_id: m.local_id,
             conversation_id: conversation_id,
-            status: this.activeCId === conversation_id ? "read" : "received",
+            status: m.status,
             ack_role: "user",
           },
         ]);
@@ -537,8 +576,6 @@ export class ChatBus extends EventEmitter {
       console.warn("syncConversationFromServer error", error?.message);
       return;
     }
-
-    console.log(data);
 
     for (const m of data ?? []) {
       const exists = await messageExists(m.id ?? null, null);
@@ -569,7 +606,7 @@ export class ChatBus extends EventEmitter {
       });
 
       const ack: BroadcastAckPayload = {
-        __type: "ack",
+        __type: "afterAck",
         conversation_id: conversation_id,
         local_id: m.local_id,
         server_id: m.id ?? null,
@@ -595,16 +632,17 @@ export class ChatBus extends EventEmitter {
             ack_role: "user",
           },
         ]);
-        if (error)
+        if (error) {
           console.error(
             "Error while sycing status to server via on sync conversation from server: ",
             error
           );
-        await queuePendingStatusSync(
-          conversation_id,
-          m.local_id,
-          this.activeCId === conversation_id ? "read" : "received"
-        );
+          await queuePendingStatusSync(
+            conversation_id,
+            m.local_id,
+            this.activeCId === conversation_id ? "read" : "received"
+          );
+        }
       }
     }
   }
@@ -668,56 +706,6 @@ export class ChatBus extends EventEmitter {
     this.emit("conversations:updated", convList);
   }
 
-  // async syncMessageStatus() {
-  //   const conversations = await getConversation<{ conversation_id: string }>([
-  //     "conversation_id",
-  //   ]);
-
-  //   for (const conversation of conversations ?? []) {
-  //     const { data, error } = await Supabase.from("last_message_status")
-  //       .select("agent_last_message_time, agent_last_message_status")
-  //       .eq("conversation_id", conversation.conversation_id);
-  //     if (error) throw error;
-  //     if (data && data[0].agent_last_message_status) {
-  //       const message = await getMessage<{ local_id: string }>(
-  //         ["local_id"],
-  //         {
-  //           status: data[0].agent_last_message_status === "read" ? "<>" : "=",
-  //           conversation_id: "=",
-  //           created_at: "<",
-  //         },
-  //         {
-  //           status:
-  //             data[0].agent_last_message_status === "read" ? "read" : "sent",
-  //           conversation_id: conversation.conversation_id,
-  //           created_at: data[0].agent_last_message_time,
-  //         }
-  //       );
-  //       await updateMessage({
-  //         msg: {
-  //           status: data[0].agent_last_message_status,
-  //         },
-  //         checkCondition: {
-  //           created_at: data[0].agent_last_message_time,
-  //           status: "read",
-  //         },
-  //         conditionSeperator: "AND",
-  //         conditionOperator: {
-  //           created_at: "<",
-  //           status: "<>",
-  //         },
-  //       });
-  //       if (message.length > 0) {
-  //         this.emit("status:sync", {
-  //           conversation_id: conversation.conversation_id,
-  //           status: data[0].agent_last_message_status,
-  //           messageIds: message,
-  //         });
-  //       }
-  //     }
-  //   }
-  // }
-
   updateActiveConversationId(conversation_id: string | null) {
     this.activeCId = conversation_id;
   }
@@ -748,7 +736,7 @@ export class ChatBus extends EventEmitter {
         });
         for (const message of unread_agent_messages) {
           const ack: BroadcastAckPayload = {
-            __type: "ack",
+            __type: "afterAck",
             local_id: message.local_id,
             server_id: message.server_id ?? null,
             sender_id: this.uid,
@@ -774,16 +762,17 @@ export class ChatBus extends EventEmitter {
                 ack_role: "user",
               },
             ]);
-            if (error)
-              console.error(
-                "Error while sycing status to server via on sync read status: ",
-                error
+            if (error) {
+              // console.error(
+              //   "Error while sycing status to server via on sync read status: ",
+              //   error
+              // );
+              await queuePendingStatusSync(
+                conversation_id,
+                message.local_id,
+                "read"
               );
-            await queuePendingStatusSync(
-              conversation_id,
-              message.local_id,
-              "read"
-            );
+            }
           }
         }
       }

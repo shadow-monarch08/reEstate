@@ -38,6 +38,7 @@ import {
 import { LoadingReviewCard, ReviewCard } from "./Card";
 import { NoResult } from "./NoResult";
 import { initialFilters } from "@/constants/data";
+import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
 interface GenericType {
   title: string;
@@ -529,7 +530,9 @@ const CustomLable2 = ({ data }: { data: LabelProps }) => {
 };
 
 export const FilterModal = React.memo(() => {
-  const { bottomSheetModalRef, filterDetail } = useGlobalContext();
+  const { bottomSheetModalRef } = useGlobalContext();
+  const { filterDetail } = useAppStore();
+
   const [isVisible, setIsVisible] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     propertyType: [
@@ -741,7 +744,7 @@ export const FilterModal = React.memo(() => {
             setFilters={setFilters}
           />
           <PriceRangeSlider
-            priceRanges={filterDetail?.data?.price_ranges}
+            priceRanges={filterDetail?.price_ranges}
             handleFilterChange={(values: [number, number]) =>
               setFilters((prev) => ({ ...prev, range: values }))
             }
@@ -758,7 +761,7 @@ export const FilterModal = React.memo(() => {
             setFilters={setFilters}
           />
           <AreaSlider
-            areaSummery={filterDetail?.data?.area_summary}
+            areaSummery={filterDetail?.area_summary}
             handleFilterChange={(values: [number, number]) =>
               setFilters((prev) => ({ ...prev, areaRange: values }))
             }

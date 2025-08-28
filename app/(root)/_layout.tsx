@@ -10,7 +10,7 @@ import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
 const AppLayout = () => {
   const { userLoading, user, isLoggedIn } = useUserStore();
-  const { setInternetStatus } = useAppStore();
+  const { setInternetStatus, getFilterDetail } = useAppStore();
   const { fetchWishlistPropertyIds } = useWishlistStore();
   const {
     start,
@@ -18,10 +18,12 @@ const AppLayout = () => {
     fetchConversationOverview,
     activeConversationId,
     changeChatBusConversationId,
+    bus,
   } = useChatStore();
   useEffect(() => {
     let unsubscribe: NetInfoSubscription;
     (async () => {
+      await getFilterDetail();
       if (user) {
         unsubscribe = NetInfo.addEventListener((state) => {
           if (state.isConnected) {
@@ -42,7 +44,9 @@ const AppLayout = () => {
     })();
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
       stop();
     };
   }, [user]);

@@ -147,22 +147,19 @@ const FullChat = () => {
         const last_message_time = await getLastKnownMessageTime(
           activeConversationData.conversation_id
         );
+        await bus.syncReadStatus(
+          activeConversationData.conversation_id,
+          activeConversationData.agent_id
+        );
         if (last_message_time)
           await markConversationRead(
             activeConversationData.conversation_id,
             last_message_time
           );
-        await bus.syncReadStatus(
-          activeConversationData.conversation_id,
-          activeConversationData.agent_id
-        );
-        await markConversationRead(
-          activeConversationData.conversation_id,
-          new Date().toISOString()
-        );
       }
     })();
-    // console.log(uuidv4());
+    console.log(uuidv4());
+    console.log(activeConversationData.conversation_id);
 
     return () => {
       setActiveConversationId(null);

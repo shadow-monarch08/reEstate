@@ -151,9 +151,7 @@ const Explore = () => {
           )}
         </View>
       ) : (
-        <View className="flex justify-center items-center flex-1">
-          <NoResult imageClassName="h-56" />
-        </View>
+        <NoResult imageClassName="h-56" />
       ),
     [loading, cardType]
   );
@@ -179,6 +177,7 @@ const Explore = () => {
         contentContainerClassName="pb-12 min-h-full pt-7"
         ListEmptyComponent={renderLoadingItem}
         ListFooterComponent={renderFooter}
+        onEndReachedThreshold={0.5}
         extraData={cardType}
         columnWrapperClassName={
           cardType === "grid" ? "flex flex-row gap-5 px-5 mt-5" : ""
