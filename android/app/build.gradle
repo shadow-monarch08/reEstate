@@ -86,9 +86,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.Realter_ReEstateapp'
+    namespace 'com.anonymous.realterreestateapp'
     defaultConfig {
-        applicationId 'com.anonymous.Realter_ReEstateapp'
+        applicationId 'com.anonymous.realterreestateapp'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
