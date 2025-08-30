@@ -15,6 +15,8 @@ import {
   queuePendingStatusSync,
   fetchQueuedPendingStatusSync,
   deleteQueuedPendingStatus,
+  updateLocalMessageUploadStatusSql,
+  markMessageFileUploadedByLocalIdSql,
 } from "./database/localStore";
 import { Supabase } from "./supabase";
 import {
@@ -34,6 +36,11 @@ export type BroadcastMessagePayload = {
   sender_role: "user" | "agent";
   body: string;
   created_at: string; // ISO
+  // file metadata (kept in local sqlite)
+  storage_path?: string | null; // key/path in Supabase storage
+  file_name?: string;
+  file_size?: number;
+  mime_type?: string;
 };
 
 export type PostgrestChangesMessagePayload = {
@@ -48,6 +55,13 @@ export type PostgrestChangesMessagePayload = {
   local_id: string;
   content_type: string;
   sender_role: "user" | "agent";
+  // file metadata (kept in local sqlite)
+  file_name: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  file_path: string | null;
+  file_bucket: string | null;
+  thums_path?: string;
 };
 
 export type BroadcastAckPayload = {
@@ -151,7 +165,7 @@ export class ChatBus extends EventEmitter {
     if (!payload || !payload.__type) return;
     if (payload.__type === "message") {
       await this._onIncomingMessage(payload as BroadcastMessagePayload);
-    } else if (payload.__type === "ack" || "ack-2" || "afrerAck") {
+    } else if (["ack", "ack-2", "afterAck"].includes(payload.__type)) {
       await this._onAck(
         payload as BroadcastAckPayload | AcknoledgmentAckPayload
       );

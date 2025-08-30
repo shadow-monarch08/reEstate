@@ -8,7 +8,6 @@ import {
   PropertyReturnType,
 } from "@/lib/supabase";
 import Animated, {
-  Layout,
   LinearTransition,
   ZoomIn,
   ZoomOut,
