@@ -1,8 +1,6 @@
 import { View, Text, Image, TextInput, TouchableOpacity } from "react-native";
-import React, { useState } from "react";
+import React from "react";
 import icons from "@/constants/icons";
-import Animated, { ZoomIn, ZoomOut } from "react-native-reanimated";
-import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
 const ChatInput = ({
   value,
@@ -15,9 +13,8 @@ const ChatInput = ({
   placeholder?: string;
   handleSubmit: (m?: string) => void;
 }) => {
-  const { setIsMediaModalVisible, isMedialModalVisible } = useAppStore();
   return (
-    <View className="w-full px-3 mb-6 flex flex-row gap-3 items-center relative">
+    <View className="w-full px-3 mb-6 flex flex-row gap-3 items-center">
       <View className="flex flex-1 flex-row gap-2 bg-primary-100 px-4 py-4 rounded-2xl">
         <View className="flex flex-1 flex-row gap-3 items-center">
           <TouchableOpacity>
@@ -39,9 +36,7 @@ const ChatInput = ({
           />
         </View>
         <View className="flex flex-row items-center gap-7">
-          <TouchableOpacity
-            onPress={() => setIsMediaModalVisible(!isMedialModalVisible)}
-          >
+          <TouchableOpacity>
             <Image
               source={icons.clip}
               className="size-[1.5rem]"

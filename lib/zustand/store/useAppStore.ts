@@ -5,20 +5,17 @@ interface AppState {
   internetStatus: "online" | "offline";
   filterDetail: FilterDetailReturnType | null;
   filterDetailLoading: boolean;
-  isMedialModalVisible: boolean;
 }
 
 interface AppStateHandlers {
   setInternetStatus: (status: "online" | "offline") => void;
   getFilterDetail: () => Promise<void>;
-  setIsMediaModalVisible: (p: boolean) => void;
 }
 
 const initialState: AppState = {
   internetStatus: "offline",
   filterDetail: null,
   filterDetailLoading: false,
-  isMedialModalVisible: false,
 };
 
 export const useAppStore = create<AppState & AppStateHandlers>((set) => ({
@@ -44,8 +41,4 @@ export const useAppStore = create<AppState & AppStateHandlers>((set) => ({
       });
     }
   },
-  setIsMediaModalVisible: (p: boolean) =>
-    set({
-      isMedialModalVisible: p,
-    }),
 }));

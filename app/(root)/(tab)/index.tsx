@@ -26,9 +26,9 @@ import Animated, {
 function getGreeting() {
   const hour = new Date().getHours();
 
-  if (hour >= 5 && hour < 15) {
+  if (hour >= 5 && hour < 12) {
     return "Good Morning 🌅";
-  } else if (hour >= 15 && hour < 17) {
+  } else if (hour >= 12 && hour < 17) {
     return "Good Afternoon ☀️";
   } else if (hour >= 17 && hour < 21) {
     return "Good Evening 🌇";
@@ -43,12 +43,6 @@ function Greeter() {
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
 
-  // ✅ JS function we’ll safely call via runOnJS
-  const updateGreeting = () => {
-    const newGreeting = getGreeting();
-    setGreeting(newGreeting);
-  };
-
   useEffect(() => {
     function scheduleNextUpdate() {
       const now = new Date();
@@ -56,11 +50,13 @@ function Greeter() {
         (60 - now.getMinutes()) * 60 * 1000 -
         now.getSeconds() * 1000 -
         now.getMilliseconds();
+
       return setTimeout(() => {
         triggerGreetingChange();
         scheduleNextUpdate();
       }, msUntilNextHour);
     }
+
     const timer = scheduleNextUpdate();
     return () => clearTimeout(timer);
   }, []);
@@ -69,9 +65,10 @@ function Greeter() {
     opacity.value = withTiming(0, { duration: 400 });
     translateY.value = withTiming(-20, { duration: 400 }, (finished) => {
       if (finished) {
-        // ✅ correctly call JS update
-        runOnJS(updateGreeting)();
-
+        runOnJS(() => {
+          const newGreeting = getGreeting(); // JS function
+          setGreeting(newGreeting); // safe update
+        })();
         translateY.value = 20;
         opacity.value = 0;
 

@@ -20,12 +20,6 @@ export type LocalMessage = {
   created_at: string;
   pending: 0 | 1;
   status: string;
-  file_name?: string;
-  file_size?: string;
-  mime_type?: string;
-  device_path?: string | null;
-  storage_path?: string | null;
-  upload_status?: string;
 };
 
 export type Message = {
@@ -172,8 +166,8 @@ export async function insertLocalMessage(m: LocalMessage) {
 
   try {
     const res = await db.runAsync(
-      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status, file_name, file_size, mime_type, upload_status, device_path, storage_path)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         m.server_id ?? null,
         m.local_id ?? null,
@@ -186,12 +180,6 @@ export async function insertLocalMessage(m: LocalMessage) {
         m.created_at,
         m.pending ?? 0,
         m.status ?? "sending",
-        m.file_name || null,
-        m.file_size || null,
-        m.mime_type || null,
-        m.upload_status || "uploading",
-        m.device_path || null,
-        m.storage_path || null,
       ]
     );
     return res.lastInsertRowId as number | undefined;
@@ -558,7 +546,6 @@ export async function getLastReadMessageTime(
       [conversation_id]
     );
     const rows = res as { last_read_at: string }[];
-    if (rows.length === 0) return null;
     return rows[0].last_read_at ?? null;
   } catch (error) {
     console.error("Failed to get last read message time: ", error);
@@ -622,38 +609,4 @@ export async function deleteQueuedPendingStatus(conversation_id: string) {
     console.error("Failed to delete queued pending status: ", error);
     throw error;
   }
-}
-
-export async function updateLocalMessageUploadStatusSql(
-  local_id: string,
-  status: string
-) {
-  const db = getDb();
-  try {
-    const query = `UPDATE messages SET upload_status = ?, updated_at = updated_at = CURRENT_TIMESTAMP WHERE local_id = ?`;
-    await db.runAsync(query, [status, local_id]);
-  } catch (error) {}
-}
-
-export async function markMessageFileUploadedByLocalIdSql(
-  local_id: string,
-  file_bucket: string,
-  file_path: string
-) {
-  const db = getDb();
-  try {
-    const query = `UPDATE messages SET file_bucket = ?, file_path = ?, upload_status = 'uploaded', updated_at = CURRENT_TIMESTAMP WHERE local_id = ?`;
-    await db.runAsync(query, [file_bucket, file_path, local_id]);
-  } catch (error) {}
-}
-
-export async function markMessageSyncedByLocalIdSql(
-  local_id: string,
-  server_id: string
-) {
-  const db = getDb();
-  try {
-    const query = `UPDATE messages SET server_id = ?, pending = 0, status = 'sent', updated_at = datetime('now') WHERE local_id = ?`;
-    await db.runAsync(query, [server_id, local_id]);
-  } catch (error) {}
 }

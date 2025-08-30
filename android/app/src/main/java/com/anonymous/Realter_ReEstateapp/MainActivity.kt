@@ -1,4 +1,4 @@
-package com.anonymous.realterreestateapp
+package com.anonymous.Realter_ReEstateapp
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

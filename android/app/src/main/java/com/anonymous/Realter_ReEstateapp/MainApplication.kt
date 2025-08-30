@@ -1,4 +1,4 @@
-package com.anonymous.realterreestateapp
+package com.anonymous.Realter_ReEstateapp
 
 import android.app.Application
 import android.content.res.Configuration
