@@ -472,8 +472,8 @@ const Property = () => {
                     </Text>
                   </View>
                   <MapDisplay
-                    location={propertyDetail.data.geolocation}
-                    onPress={() => setIsModalVisible(!isModalVisible)}
+                    onPress={() => setIsModalVisible(true)}
+                    location={propertyDetail?.data?.geolocation}
                   />
                   <View className="flex flex-row justify-between mt-7 items-center">
                     <View className="flex flex-row gap-3">

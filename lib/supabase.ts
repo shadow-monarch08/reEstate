@@ -1,14 +1,14 @@
 import { AuthError, createClient, PostgrestError } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { mmkvStorage } from "./storage/mmkvStorage";
 
 export const Supabase = createClient(
   Constants.expoConfig?.extra?.SUPABASE_URL,
   Constants.expoConfig?.extra?.SUPABASE_KEY,
   {
     auth: {
-      storage: AsyncStorage,
+      storage: mmkvStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

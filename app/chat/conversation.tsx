@@ -6,6 +6,7 @@ import { Image } from "react-native";
 import icons from "@/constants/icons";
 import ChatInput from "@/components/ChatInput";
 import { v4 as uuidv4 } from "uuid";
+import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { simpleFormatTimestamp } from "@/utils";
 import {
   getConversation,
@@ -20,6 +21,7 @@ import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import { EmptyChatCard } from "@/components/NoResult";
 import MediaModalProvider from "@/components/MediaModalProvider";
 import MediaModal from "@/components/MediaModal";
+import { launchImageLibraryAsync } from "expo-image-picker";
 
 const LoadingAgentMessage = () => (
   <View className="w-full flex flex-col items-end mt-7">
@@ -137,7 +139,16 @@ const FullChat = () => {
     {
       icon: icons.gallery_h,
       title: "Gallery",
-      onPress: async () => {},
+      onPress: async () => {
+        let result = await launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+        });
+
+        console.log(result);
+      },
       iconColor: "#831843",
     },
     {

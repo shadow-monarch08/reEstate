@@ -1,5 +1,5 @@
 // app/_layout.tsx
-// import "react-native-get-random-values";
+import "react-native-get-random-values";
 import { SplashScreen, Stack } from "expo-router";
 import "./global.css";
 import { useFonts } from "expo-font";
