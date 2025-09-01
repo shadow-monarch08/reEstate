@@ -6,7 +6,6 @@ import { Image } from "react-native";
 import icons from "@/constants/icons";
 import ChatInput from "@/components/ChatInput";
 import { v4 as uuidv4 } from "uuid";
-import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { simpleFormatTimestamp } from "@/utils";
 import {
   getConversation,
@@ -19,6 +18,8 @@ import { useChatStore } from "@/lib/zustand/store/useChatStore";
 import { upsertConversation } from "@/lib/supabase";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import { EmptyChatCard } from "@/components/NoResult";
+import MediaModalProvider from "@/components/MediaModalProvider";
+import MediaModal from "@/components/MediaModal";
 
 const LoadingAgentMessage = () => (
   <View className="w-full flex flex-col items-end mt-7">
@@ -125,6 +126,45 @@ const FullChat = () => {
     bus,
   } = useChatStore();
   const { user } = useUserStore();
+
+  const mediaContent = [
+    {
+      icon: icons.doc_h,
+      title: "Document",
+      onPress: () => {},
+      iconColor: "#581c87",
+    },
+    {
+      icon: icons.gallery_h,
+      title: "Gallery",
+      onPress: async () => {},
+      iconColor: "#831843",
+    },
+    {
+      icon: icons.camera_h,
+      title: "Camera",
+      onPress: () => {},
+      iconColor: "#ca8a04",
+    },
+    {
+      icon: icons.profile_h,
+      title: "Contact",
+      onPress: () => {},
+      iconColor: "#ef4444",
+    },
+    {
+      icon: icons.audio_h,
+      title: "Audio",
+      onPress: () => {},
+      iconColor: "#166534",
+    },
+    {
+      icon: icons.location_h,
+      title: "Location",
+      onPress: () => {},
+      iconColor: "#0061ff",
+    },
+  ];
 
   const [initialLoading, setInitialLoading] = useState(false);
 
@@ -284,28 +324,31 @@ const FullChat = () => {
   );
 
   return (
-    <SafeAreaView className="bg-accent-100 min-h-full relative flex-1">
-      <HeaderComponent />
-      <FlatList
-        className="px-5 h-full"
-        data={Array.from(messages?.values() ?? [])}
-        keyExtractor={(item) => item.local_id}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          loadingMessages ? (
-            <LoadingChatSkeleton />
-          ) : (
-            <EmptyChatCard handleMessage={handleMessage} />
-          )
-        }
-        inverted={true}
-        contentContainerClassName="pt-5"
-      />
-      <ChatInput
-        value={text}
-        handleInput={(msg: string) => setText(msg)}
-        handleSubmit={handleMessage}
-      />
+    <SafeAreaView className="bg-accent-100 min-h-full relative flex-1 w-full">
+      <MediaModalProvider>
+        <HeaderComponent />
+        <FlatList
+          className="px-5 h-full"
+          data={Array.from(messages?.values() ?? [])}
+          keyExtractor={(item) => item.local_id}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            loadingMessages ? (
+              <LoadingChatSkeleton />
+            ) : (
+              <EmptyChatCard handleMessage={handleMessage} />
+            )
+          }
+          inverted={true}
+          contentContainerClassName="pt-5"
+        />
+        <MediaModal content={mediaContent} />
+        <ChatInput
+          value={text}
+          handleInput={(msg: string) => setText(msg)}
+          handleSubmit={handleMessage}
+        />
+      </MediaModalProvider>
     </SafeAreaView>
   );
 };

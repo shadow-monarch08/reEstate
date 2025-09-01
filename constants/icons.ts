@@ -4,12 +4,14 @@ import add_outline from "@/assets/icons/add-outline.png";
 import all from "@/assets/icons/all.png";
 import apartment from "@/assets/icons/apartment.png";
 import area from "@/assets/icons/area.png";
+import audio_h from "@/assets/icons/audio_h.png";
 import back_arrow from "@/assets/icons/back-arrow.png";
 import bath from "@/assets/icons/bath.png";
 import bed from "@/assets/icons/bed.png";
 import bell from "@/assets/icons/bell.png";
 import calendar from "@/assets/icons/calendar.png";
 import camera from "@/assets/icons/camera.png";
+import camera_h from "@/assets/icons/camera_h.png";
 import car_park from "@/assets/icons/car-park.png";
 import chat_filled from "@/assets/icons/chat-filled.png";
 import chat_outline from "@/assets/icons/chat-outline.png";
@@ -18,12 +20,14 @@ import clip from "@/assets/icons/clip.png";
 import clock from "@/assets/icons/clock.png";
 import condo from "@/assets/icons/condo.png";
 import cutlery from "@/assets/icons/cutlery.png";
+import doc_h from "@/assets/icons/doc_h.png";
 import dog from "@/assets/icons/dog.png";
 import dumbell from "@/assets/icons/dumbell.png";
 import duplex from "@/assets/icons/duplex.png";
 import edit from "@/assets/icons/edit.png";
 import expand from "@/assets/icons/expand.png";
 import filter from "@/assets/icons/filter.png";
+import gallery_h from "@/assets/icons/gallery_h.png";
 import google from "@/assets/icons/google.png";
 import heart_filled from "@/assets/icons/heart-filled.png";
 import heart from "@/assets/icons/heart.png";
@@ -36,6 +40,7 @@ import language from "@/assets/icons/language.png";
 import laundry from "@/assets/icons/laundry.png";
 import list from "@/assets/icons/list.png";
 import location from "@/assets/icons/location.png";
+import location_h from "@/assets/icons/location_h.png";
 import location_marker from "@/assets/icons/location_marker.png";
 import logout from "@/assets/icons/logout.png";
 import map from "@/assets/icons/map.png";
@@ -49,6 +54,7 @@ import price_down from "@/assets/icons/price-down.png";
 import price_up from "@/assets/icons/price-up.png";
 import profile_filled from "@/assets/icons/profile-filled.png";
 import profile_outline from "@/assets/icons/profile-outline.png";
+import profile_h from "@/assets/icons/profile_h.png";
 import rating_down from "@/assets/icons/rating-down.png";
 import rating_up from "@/assets/icons/rating-up.png";
 import right_arrow from "@/assets/icons/right-arrow.png";
@@ -81,12 +87,14 @@ export default {
   all,
   apartment,
   area,
+  audio_h,
   back_arrow,
   bath,
   bed,
   bell,
   calendar,
   camera,
+  camera_h,
   car_park,
   chat_filled,
   chat_outline,
@@ -95,12 +103,14 @@ export default {
   clock,
   condo,
   cutlery,
+  doc_h,
   dog,
   dumbell,
   duplex,
   edit,
   expand,
   filter,
+  gallery_h,
   google,
   heart_filled,
   heart,
@@ -113,6 +123,7 @@ export default {
   laundry,
   list,
   location,
+  location_h,
   location_marker,
   logout,
   map,
@@ -126,6 +137,7 @@ export default {
   price_up,
   profile_filled,
   profile_outline,
+  profile_h,
   rating_down,
   rating_up,
   right_arrow,
