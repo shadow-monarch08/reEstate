@@ -531,159 +531,159 @@ const CustomLable2 = ({ data }: { data: LabelProps }) => {
 
 export const FilterModal = React.memo(() => {
   const { bottomSheetModalRef } = useGlobalContext();
-  const { filterDetail } = useAppStore();
+  // const { filterDetail } = useAppStore();
 
   const [isVisible, setIsVisible] = useState(false);
-  const [filters, setFilters] = useState<Filters>({
-    propertyType: [
-      {
-        title: "Houses",
-        category: "House",
-        isSelected: true,
-        icon: icons.house,
-      },
-      {
-        title: "Condos",
-        category: "Condo",
-        isSelected: false,
-        icon: icons.condo,
-      },
-      {
-        title: "Duplexes",
-        category: "Duplex",
-        isSelected: false,
-        icon: icons.duplex,
-      },
-      {
-        title: "Studios",
-        category: "Studio",
-        isSelected: false,
-        icon: icons.studio,
-      },
-      {
-        title: "Villas",
-        category: "Villa",
-        isSelected: false,
-        icon: icons.villa,
-      },
-      {
-        title: "Apartments",
-        category: "Apartment",
-        isSelected: false,
-        icon: icons.apartment,
-      },
-      {
-        title: "Townhouses",
-        category: "Townhouse",
-        isSelected: false,
-        icon: icons.townhouse,
-      },
-      {
-        title: "Others",
-        category: "Other",
-        isSelected: false,
-        icon: icons.more,
-      },
-    ],
-  });
+  // const [filters, setFilters] = useState<Filters>({
+  //   propertyType: [
+  //     {
+  //       title: "Houses",
+  //       category: "House",
+  //       isSelected: true,
+  //       icon: icons.house,
+  //     },
+  //     {
+  //       title: "Condos",
+  //       category: "Condo",
+  //       isSelected: false,
+  //       icon: icons.condo,
+  //     },
+  //     {
+  //       title: "Duplexes",
+  //       category: "Duplex",
+  //       isSelected: false,
+  //       icon: icons.duplex,
+  //     },
+  //     {
+  //       title: "Studios",
+  //       category: "Studio",
+  //       isSelected: false,
+  //       icon: icons.studio,
+  //     },
+  //     {
+  //       title: "Villas",
+  //       category: "Villa",
+  //       isSelected: false,
+  //       icon: icons.villa,
+  //     },
+  //     {
+  //       title: "Apartments",
+  //       category: "Apartment",
+  //       isSelected: false,
+  //       icon: icons.apartment,
+  //     },
+  //     {
+  //       title: "Townhouses",
+  //       category: "Townhouse",
+  //       isSelected: false,
+  //       icon: icons.townhouse,
+  //     },
+  //     {
+  //       title: "Others",
+  //       category: "Other",
+  //       isSelected: false,
+  //       icon: icons.more,
+  //     },
+  //   ],
+  // });
 
   const snapPoints = useMemo(() => ["90%"], []);
 
-  const handlePropertyType = (index: number) => {
-    try {
-      // console.log("pressed");
-      if (filters.propertyType) {
-        setFilters((prevItem) => ({
-          ...prevItem,
-          propertyType: prevItem.propertyType?.map((item, i) =>
-            i === index
-              ? {
-                  ...item,
-                  isSelected:
-                    prevItem.propertyType?.filter((obj) => obj.isSelected)
-                      .length === 1
-                      ? true
-                      : !item.isSelected,
-                }
-              : item
-          ),
-        }));
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // const handlePropertyType = (index: number) => {
+  //   try {
+  //     // console.log("pressed");
+  //     if (filters.propertyType) {
+  //       setFilters((prevItem) => ({
+  //         ...prevItem,
+  //         propertyType: prevItem.propertyType?.map((item, i) =>
+  //           i === index
+  //             ? {
+  //                 ...item,
+  //                 isSelected:
+  //                   prevItem.propertyType?.filter((obj) => obj.isSelected)
+  //                     .length === 1
+  //                     ? true
+  //                     : !item.isSelected,
+  //               }
+  //             : item
+  //         ),
+  //       }));
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
 
-  const handleFacilities = (index: number) => {
-    try {
-      setFilters((prevItem) => ({
-        ...prevItem,
-        facilities: prevItem.facilities?.map((item, i) =>
-          i === index
-            ? {
-                ...item,
-                isSelected:
-                  prevItem.facilities?.filter((obj) => obj.isSelected)
-                    .length === 1
-                    ? true
-                    : !item.isSelected,
-              }
-            : item
-        ),
-      }));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // const handleFacilities = (index: number) => {
+  //   try {
+  //     setFilters((prevItem) => ({
+  //       ...prevItem,
+  //       facilities: prevItem.facilities?.map((item, i) =>
+  //         i === index
+  //           ? {
+  //               ...item,
+  //               isSelected:
+  //                 prevItem.facilities?.filter((obj) => obj.isSelected)
+  //                   .length === 1
+  //                   ? true
+  //                   : !item.isSelected,
+  //             }
+  //           : item
+  //       ),
+  //     }));
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
 
-  const handleSetFilter = () => {
-    try {
-      let filter = {};
-      if (filters.propertyType) {
-        filter = {
-          ...filter,
-          propertyType: filters.propertyType
-            ?.filter((item) => item.isSelected)
-            .map((item) => item.category),
-        };
-      }
-      if (filters.facilities) {
-        filter = {
-          ...filter,
-          facilities: filters.facilities
-            ?.filter((item) => item.isSelected)
-            .map((item) => item.category),
-        };
-      }
-      console.log("filter", filter);
-      router.setParams({ propFilter: JSON.stringify(filter) });
-      if (bottomSheetModalRef.current) {
-        bottomSheetModalRef.current[0]?.dismiss();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // const handleSetFilter = () => {
+  //   try {
+  //     let filter = {};
+  //     if (filters.propertyType) {
+  //       filter = {
+  //         ...filter,
+  //         propertyType: filters.propertyType
+  //           ?.filter((item) => item.isSelected)
+  //           .map((item) => item.category),
+  //       };
+  //     }
+  //     if (filters.facilities) {
+  //       filter = {
+  //         ...filter,
+  //         facilities: filters.facilities
+  //           ?.filter((item) => item.isSelected)
+  //           .map((item) => item.category),
+  //       };
+  //     }
+  //     console.log("filter", filter);
+  //     router.setParams({ propFilter: JSON.stringify(filter) });
+  //     if (bottomSheetModalRef.current) {
+  //       bottomSheetModalRef.current[0]?.dismiss();
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
 
-  const handleReset = () => {
-    router.setParams({ propFilter: null });
-    // setFilters(initialFilters);
-  };
+  // const handleReset = () => {
+  //   router.setParams({ propFilter: null });
+  //   // setFilters(initialFilters);
+  // };
 
   const backDrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop
+        {...props}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
-        {...props}
       />
     ),
     []
   );
 
-  const handleModalOpen = useCallback(() => {
-    setIsVisible(true);
-  }, []);
+  // const handleModalOpen = useCallback(() => {
+  //   setIsVisible(true);
+  // }, []);
 
   const handleModalClose = useCallback(() => {
     setIsVisible(false);
@@ -701,10 +701,10 @@ export const FilterModal = React.memo(() => {
 
   return (
     <BottomSheetModal
-      onChange={(index) => {
-        if (index >= 0) handleModalOpen();
-        else handleModalClose();
-      }}
+      // onChange={(index) => {
+      //   if (index >= 0) handleModalOpen();
+      //   else handleModalClose();
+      // }}
       // index={0}
       backdropComponent={backDrop}
       style={styles.shadowBox}
@@ -725,14 +725,14 @@ export const FilterModal = React.memo(() => {
           <Text className="font-rubik-medium text-lg text-black-300">
             Filter
           </Text>
-          <TouchableOpacity onPress={handleReset}>
+          <TouchableOpacity>
             <Text className="font-rubik-medium text-base mt-1 text-primary-300">
               Reset
             </Text>
           </TouchableOpacity>
         </View>
       </BottomSheetView>
-      {!isVisible ? (
+      {/* {!isVisible ? (
         <FilterLoadingComponent />
       ) : (
         <BottomSheetScrollView
@@ -766,14 +766,14 @@ export const FilterModal = React.memo(() => {
               setFilters((prev) => ({ ...prev, areaRange: values }))
             }
             setFilters={setFilters}
-          />
-          <Button
+          /> */}
+      {/* <Button
             text="Set Filter"
             handlePress={handleSetFilter}
             buttonStyle="my-9"
           />
         </BottomSheetScrollView>
-      )}
+      )} */}
     </BottomSheetModal>
   );
 });

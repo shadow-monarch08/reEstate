@@ -1,4 +1,5 @@
 import EventEmitter from "eventemitter3";
+import Constants from "expo-constants";
 import {
   insertLocalMessage,
   getPendingMessages,
@@ -15,15 +16,17 @@ import {
   queuePendingStatusSync,
   fetchQueuedPendingStatusSync,
   deleteQueuedPendingStatus,
-  updateLocalMessageUploadStatusSql,
-  markMessageFileUploadedByLocalIdSql,
 } from "./database/localStore";
 import { Supabase } from "./supabase";
 import {
   RealtimeChannel,
   RealtimePostgresInsertPayload,
 } from "@supabase/supabase-js";
-
+// Add or replace this method inside your ChatBus class
+import * as tus from "tus-js-client";
+import { ImagePickerAsset } from "expo-image-picker";
+import { MediaManager } from "./mediaManager";
+import { DocumentPickerAsset } from "expo-document-picker";
 // envelope types
 export type BroadcastMessagePayload = {
   __type: "message";
@@ -38,9 +41,9 @@ export type BroadcastMessagePayload = {
   created_at: string; // ISO
   // file metadata (kept in local sqlite)
   storage_path?: string | null; // key/path in Supabase storage
-  file_name?: string;
-  file_size?: number;
-  mime_type?: string;
+  file_name?: string | null;
+  file_size?: number | null;
+  mime_type?: string | null;
 };
 
 export type PostgrestChangesMessagePayload = {
@@ -59,9 +62,7 @@ export type PostgrestChangesMessagePayload = {
   file_name: string | null;
   file_size: number | null;
   mime_type: string | null;
-  file_path: string | null;
-  file_bucket: string | null;
-  thums_path?: string;
+  storage_path: string | null;
 };
 
 export type BroadcastAckPayload = {
@@ -375,23 +376,25 @@ export class ChatBus extends EventEmitter {
   }
 
   // Send message: optimistic local insert + broadcast to agent inbox + wait for ack -> fallback to server write
-  async sendMessage(message: LocalMessage) {
+  async sendMessage(message: LocalMessage, skipLocalInsert: boolean) {
     if (!this.uid) throw new Error("not started");
 
     // 1) insert locally as pending
-    await insertLocalMessage({
-      conversation_id: message.conversation_id,
-      local_id: message.local_id,
-      server_id: null,
-      sender_id: this.uid,
-      receiver_id: message.receiver_id,
-      sender_role: "user",
-      body: message.body,
-      created_at: message.created_at,
-      pending: 1,
-      content_type: message.content_type,
-      status: message.status,
-    });
+    if (!skipLocalInsert) {
+      await insertLocalMessage({
+        conversation_id: message.conversation_id,
+        local_id: message.local_id,
+        server_id: null,
+        sender_id: this.uid,
+        receiver_id: message.receiver_id,
+        sender_role: "user",
+        body: message.body,
+        created_at: message.created_at,
+        pending: 1,
+        content_type: message.content_type,
+        status: message.status,
+      });
+    }
 
     // 2) broadcast to agent's inbox
     const payload: BroadcastMessagePayload = {
@@ -405,6 +408,10 @@ export class ChatBus extends EventEmitter {
       body: message.body,
       created_at: message.created_at,
       content_type: message.content_type,
+      file_name: message.file_name ?? null,
+      file_size: message.file_size ?? null,
+      mime_type: message.mime_type ?? null,
+      storage_path: message.storage_path ?? null,
     };
 
     try {
@@ -469,6 +476,10 @@ export class ChatBus extends EventEmitter {
             body: message.body,
             created_at: message.created_at,
             content_type: message.content_type,
+            file_name: message.file_name ?? null,
+            file_size: message.file_size ?? null,
+            mime_type: message.mime_type ?? null,
+            storage_path: message.storage_path ?? null,
           },
         ])
         .select("id");
@@ -485,6 +496,135 @@ export class ChatBus extends EventEmitter {
     } catch (e) {
       console.warn("fallback server persist failed, message stays pending", e);
       // leave pending = 1 and it will be flushed by flushPendingToServer later
+    }
+  }
+
+  /**
+   * Handles the complete lifecycle of sending a file message using the TUS protocol.
+   * This provides resumable uploads and real-time progress.
+   *
+   * 1. Creates an optimistic local message placeholder.
+   * 2. Uploads the file to Supabase Storage using tus-js-client.
+   * 3. On success, updates the local message and sends a real message payload.
+   * 4. On failure, updates the local message to indicate an error.
+   *
+   * @param asset The File object to upload.
+   * @param message The base message object (contains conversation_id, receiver_id, etc.).
+   * @param onProgress A callback function to report upload progress (0 to 100).
+   */
+  async sendFileMessage(
+    asset: ImagePickerAsset | DocumentPickerAsset,
+    message: LocalMessage
+  ): Promise<void> {
+    if (!this.uid) throw new Error("ChatBus not started");
+
+    // Step 1: Optimistic local insert.
+    // The UI can immediately render this message as "uploading...".
+    await insertLocalMessage(message);
+
+    this.emit("upload:progress", {
+      local_id: message.local_id,
+      upload_progress: 0,
+    });
+    // Step 2: Begin the upload process using TUS.
+    try {
+      const bucketName = "chat_files"; // Your bucket name
+      const filePath = `${this.uid}/${message.conversation_id}/${message.local_id}-${message.file_name}`;
+
+      // Get auth token for the upload
+      const {
+        data: { session },
+      } = await Supabase.auth.getSession();
+      if (!session) throw new Error("User not authenticated");
+      const token = session.access_token;
+
+      // highlight-start
+      // In React Native, we fetch the local URI to get the file data as a blob
+      const response = await fetch(asset.uri);
+      const fileBlob = await response.blob();
+      // highlight-end
+
+      // Use a Promise to wrap the TUS upload callbacks
+      const uploadPromise = new Promise<string>((resolve, reject) => {
+        const upload = new tus.Upload(fileBlob, {
+          endpoint: `${Constants.expoConfig?.extra?.SUPABASE_URL}/storage/v1/upload/resumable`,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            authorization: `Bearer ${token}`,
+            "x-upsert": "true",
+          },
+          metadata: {
+            bucketName: bucketName,
+            objectName: filePath,
+            cacheControl: "3600",
+          },
+          onProgress: (bytesUploaded, bytesTotal) => {
+            const percentage = (bytesUploaded / bytesTotal) * 100;
+            this.emit("upload:progress", {
+              local_id: message.local_id,
+              upload_progress: percentage,
+            });
+          },
+          onError: (error) => {
+            console.error("TUS upload failed:", error);
+            reject(error);
+          },
+          onSuccess: () => {
+            const publicUrl = Supabase.storage
+              .from(bucketName)
+              .getPublicUrl(filePath).data.publicUrl;
+            resolve(publicUrl);
+          },
+        });
+        upload.start();
+      });
+
+      // Await the result of the upload
+      const publicUrl = await uploadPromise;
+
+      this.emit("upload:progress", {
+        local_id: message.local_id,
+        upload_progress: 100,
+      });
+
+      // Step 4: Update the pending message's body to the final URL
+      // and let the existing reliable message-sending logic handle it.
+      await updateMessage({
+        msg: {
+          upload_status: "uploaded",
+          storage_path: filePath,
+        },
+        checkCondition: { local_id: message.local_id },
+        conditionOperator: { local_id: "=" },
+      });
+
+      // Step 3: Use the refactored sendMessage to broadcast the message in real-time.
+      const finalMessage: LocalMessage = {
+        ...message, // Contains all the original IDs and timestamps
+        storage_path: filePath,
+      };
+
+      // Step 5: Trigger a flush to send the now-ready message immediately.
+      // highlight-start
+      // Call sendMessage, skipping the now-redundant local insert.
+      // This is the real-time, broadcast-first approach.
+      await this.sendMessage(finalMessage, true);
+      // highlight-end
+    } catch (e) {
+      console.error("File upload process failed:", e);
+      // Mark the message as failed in the local DB for the UI to show a "retry" option.
+      await updateMessage({
+        msg: {
+          upload_status: "failed",
+          storage_path: null,
+        },
+        checkCondition: { local_id: message.local_id },
+        conditionOperator: { local_id: "=" },
+      });
+      this.emit("upload:progress", {
+        local_id: message.local_id,
+        upload_progress: -1,
+      });
     }
   }
 

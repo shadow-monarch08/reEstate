@@ -339,6 +339,31 @@ export const ChatCard = React.memo(
   }: { item: ConversationOverviewReturnType } & {
     handlePress: (param: ActiveConversationData) => void;
   }) => {
+    const getStatusIcon = (status: string) => {
+      switch (status) {
+        case "pending":
+          return icons.clock;
+        case "sent":
+          return icons.tick;
+        case "received":
+          return icons.tick_double;
+        case "read":
+          return icons.tick_double;
+        default:
+          return icons.bell;
+      }
+    };
+
+    const getFileIcon = (fileType: string) => {
+      switch (fileType) {
+        case "image":
+          return icons.gallery;
+        case "file":
+          return icons.doc;
+        default:
+          return icons.bell;
+      }
+    };
     return (
       <Animated.View
         style={{
@@ -373,38 +398,44 @@ export const ChatCard = React.memo(
                 {item.agent_name}
               </Text>
               <View className="flex flex-row gap-2">
-                {item.last_message_pending ? (
+                {item.last_message_sender_role === "user" && (
                   <Image
-                    source={icons.clock}
-                    tintColor={"#666876"}
+                    source={getStatusIcon(item.last_message_status)}
+                    tintColor={
+                      item.last_message_status === "read"
+                        ? "#0061ff"
+                        : "#666876"
+                    }
                     className="size-5"
                   />
-                ) : (
-                  item.last_message_sender_role === "user" &&
-                  (item.last_message_status === "sent" ? (
-                    <Image
-                      source={icons.tick}
-                      tintColor={"#666876"}
-                      className="size-5"
-                    />
-                  ) : (
-                    <Image
-                      source={icons.tick_double}
-                      tintColor={
-                        item.last_message_status === "received"
-                          ? "#666876"
-                          : "#0061FF"
-                      }
-                      className="size-5"
-                    />
-                  ))
                 )}
-                <Text
-                  className="text-black-200 font-rubik text-sm"
-                  numberOfLines={1}
-                >
-                  {item.last_message}
-                </Text>
+                {item.last_message_content_type.split("/")[0] === "text" ? (
+                  <Text
+                    className="text-black-200 font-rubik text-sm"
+                    numberOfLines={1}
+                  >
+                    {item.last_message}
+                  </Text>
+                ) : (
+                  <View className="flex flex-row gap-1">
+                    <Image
+                      className="size-4"
+                      tintColor={"#666876"}
+                      source={getFileIcon(
+                        item.last_message_content_type.split("/")[0]
+                      )}
+                    />
+                    <Text
+                      className="text-black-200 font-rubik text-sm w-52"
+                      numberOfLines={1}
+                    >
+                      {JSON.parse(item.last_message).message ||
+                      item.last_message_content_type.split("/")[0] === "image"
+                        ? "Image"
+                        : JSON.parse(item.last_message).file_name}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>

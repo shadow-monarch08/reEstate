@@ -20,6 +20,7 @@ import clip from "@/assets/icons/clip.png";
 import clock from "@/assets/icons/clock.png";
 import condo from "@/assets/icons/condo.png";
 import cutlery from "@/assets/icons/cutlery.png";
+import doc from "@/assets/icons/doc.png";
 import doc_h from "@/assets/icons/doc_h.png";
 import dog from "@/assets/icons/dog.png";
 import dumbell from "@/assets/icons/dumbell.png";
@@ -27,6 +28,7 @@ import duplex from "@/assets/icons/duplex.png";
 import edit from "@/assets/icons/edit.png";
 import expand from "@/assets/icons/expand.png";
 import filter from "@/assets/icons/filter.png";
+import gallery from "@/assets/icons/gallery.png";
 import gallery_h from "@/assets/icons/gallery_h.png";
 import google from "@/assets/icons/google.png";
 import heart_filled from "@/assets/icons/heart-filled.png";
@@ -103,6 +105,7 @@ export default {
   clock,
   condo,
   cutlery,
+  doc,
   doc_h,
   dog,
   dumbell,
@@ -110,6 +113,7 @@ export default {
   edit,
   expand,
   filter,
+  gallery,
   gallery_h,
   google,
   heart_filled,

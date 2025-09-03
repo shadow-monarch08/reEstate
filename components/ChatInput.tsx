@@ -60,14 +60,14 @@ const ChatInput = ({
       {value?.trim().length === 0 || !value ? (
         <TouchableOpacity
           activeOpacity={0.6}
-          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+          className="p-3.5 bg-primary-300 rounded-full"
         >
           <Image source={icons.mic} className="size-6" tintColor={"white"} />
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
           activeOpacity={0.6}
-          className="p-3.5 bg-primary-300 rounded-full shadow-slate-300 shadow-lg"
+          className="p-3.5 bg-primary-300 rounded-full"
           onPress={() => handleSubmit()}
         >
           <Image source={icons.send} className="size-6" tintColor={"white"} />

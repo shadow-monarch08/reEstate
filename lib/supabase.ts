@@ -222,7 +222,6 @@ export interface ConversationOverviewReturnType {
   last_message_time: string; // ISO timestamp (can use Date if parsed)
   last_message_status: string;
   last_message_sender_role: string;
-  last_message_pending: 0 | 1;
   unread_count: number;
 }
 

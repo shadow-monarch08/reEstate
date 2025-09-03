@@ -3,6 +3,7 @@ import bar_chart from "@/assets/images/bar-chart.png";
 import card_gradient from "@/assets/images/card-gradient.png";
 import favicon from "@/assets/images/favicon.png";
 import icon from "@/assets/images/icon.png";
+import image_gradient from "@/assets/images/image_gradient.png";
 import japan from "@/assets/images/japan.png";
 import map from "@/assets/images/map.png";
 import new_york from "@/assets/images/new-york.png";
@@ -20,6 +21,7 @@ export default {
   card_gradient,
   favicon,
   icon,
+  image_gradient,
   japan,
   map,
   new_york,

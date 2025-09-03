@@ -105,6 +105,15 @@ export const useChatStore = create<
 >((set, get) => {
   const bus = chatBus;
 
+  const uploadProgress = (data: {
+    local_id: string;
+    upload_progress: number;
+  }) => {
+    console.log(
+      `upload pregressed ${data.upload_progress} for local id ${data.local_id}`
+    );
+  };
+
   const incomingMessage = (msg: PostgrestChangesMessagePayload) => {
     const activeConversation = get().activeConversationId;
     const conversationOverview = get().conversationOverview.get(
@@ -112,7 +121,7 @@ export const useChatStore = create<
     );
 
     if (msg.conversation_id === activeConversation) {
-      get().addMessage({ ...msg, pending: 0 });
+      get().addMessage({ ...msg });
     }
 
     if (conversationOverview) {
@@ -121,7 +130,6 @@ export const useChatStore = create<
         last_message: msg.body,
         last_message_time: msg.created_at,
         last_message_status: msg.status,
-        last_message_pending: 0,
         last_message_content_type: msg.content_type,
         last_message_sender_role: msg.sender_role,
         unread_count:
@@ -139,11 +147,9 @@ export const useChatStore = create<
     get().updateWithoutOrderChange({
       conversation_id: msgAck.conversation_id,
       last_message_status: msgAck.status,
-      last_message_pending: 0,
     });
 
     get().updateMessage(msgAck.local_id, {
-      pending: 0,
       status: msgAck.status,
     });
   };
@@ -152,11 +158,9 @@ export const useChatStore = create<
     get().updateWithoutOrderChange({
       conversation_id: msgSync.conversation_id,
       last_message_status: "sent",
-      last_message_pending: 0,
     });
     if (msgSync.conversation_id === get().activeConversationId) {
       get().updateMessage(msgSync.local_id, {
-        pending: 0,
         status: "sent",
       });
     }
@@ -170,7 +174,6 @@ export const useChatStore = create<
     if (get().activeConversationId === statusSync.conversation_id) {
       for (const message of statusSync.messageIds) {
         get().updateMessage(message.local_id, {
-          pending: 0,
           status: statusSync.status,
         });
       }
@@ -178,7 +181,6 @@ export const useChatStore = create<
     get().updateWithoutOrderChange({
       conversation_id: statusSync.conversation_id,
       last_message_status: statusSync.status,
-      last_message_pending: 0,
     });
   };
 
@@ -187,10 +189,12 @@ export const useChatStore = create<
     .off("message:ack", incomingAck)
     .off("message:sync", msgSync)
     .off("status:sync", statusSync)
+    .off("upload:progress", uploadProgress)
     .on("message:incoming", incomingMessage)
     .on("message:ack", incomingAck)
     .on("message:sync", msgSync)
-    .on("status:sync", statusSync);
+    .on("status:sync", statusSync)
+    .on("upload:progress", uploadProgress);
 
   return {
     ...initialState,

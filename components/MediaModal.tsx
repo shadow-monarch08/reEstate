@@ -4,8 +4,9 @@ import {
   ImageSourcePropType,
   TouchableOpacity,
   Image,
+  BackHandler,
 } from "react-native";
-import React from "react";
+import React, { useEffect } from "react";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
@@ -19,13 +20,30 @@ const MediaModal = ({
     iconColor: string;
   }>;
 }) => {
-  const { isMedialModalVisible } = useAppStore();
+  const { isMedialModalVisible, setIsMediaModalVisible } = useAppStore();
+  useEffect(() => {
+    const backAction = () => {
+      setIsMediaModalVisible(false);
+      // highlight-start
+      return isMedialModalVisible; // This is the key to preventing the default behavior
+      // highlight-end
+    };
+
+    // Add the event listener
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    // Cleanup function: remove the event listener when the component unmounts
+    return () => backHandler.remove();
+  }, [isMedialModalVisible]);
   return (
     isMedialModalVisible && (
       <View className="w-full h-fit absolute bottom-24 z-40 px-6">
         <Animated.View
-          entering={FadeInDown}
-          exiting={FadeOutDown}
+          entering={FadeInDown.duration(200)}
+          exiting={FadeOutDown.duration(150)}
           className="h-fit w-full rounded-3xl bg-white overflow-hidden shadow-black-100 shadow-md"
         >
           <View className="size-full bg-primary-100 items-center justify-evenly gap-5 flex flex-row flex-wrap p-5">

@@ -21,7 +21,7 @@ export type LocalMessage = {
   pending: 0 | 1;
   status: string;
   file_name?: string;
-  file_size?: string;
+  file_size?: number;
   mime_type?: string;
   device_path?: string | null;
   storage_path?: string | null;
@@ -35,8 +35,9 @@ export type Message = {
   sender_role: "agent" | "user";
   content_type: string;
   status: string;
-  pending: 0 | 1;
   created_at: string;
+  upload_status?: string;
+  progress?: number;
 };
 
 export const getAllConversationOverviews = async ({
@@ -99,7 +100,6 @@ export const getAllConversationOverviews = async ({
       last_message_status: latestMessage?.status,
       last_message_content_type: latestMessage?.content_type,
       last_message_sender_role: latestMessage?.sender_role,
-      last_message_pending: latestMessage?.pending,
       unread_count: conv.unread_count ?? 0,
     });
   }
@@ -160,7 +160,6 @@ export const getConversationOverview = async (
     last_message_status: latestMessage?.status,
     last_message_content_type: latestMessage?.content_type,
     last_message_sender_role: latestMessage?.sender_role,
-    last_message_pending: latestMessage?.pending,
     unread_count: conv.unread_count ?? 0,
   };
 
@@ -318,7 +317,7 @@ export const getMessagesByConversation = async ({
 
     const messages = await db.getAllAsync<Message>(
       `
-      SELECT conversation_id, local_id, sender_role, status, body, created_at, pending FROM Messages
+      SELECT conversation_id, local_id, sender_role, content_type, status, body, created_at FROM Messages
       WHERE conversation_id = ?
       ORDER BY datetime(created_at) DESC
       LIMIT ? OFFSET ?
@@ -514,7 +513,7 @@ export async function getPendingMessages(): Promise<LocalMessage[] | null> {
   const db = getDb();
   try {
     const res = await db.getAllAsync(
-      `select * from Messages where pending=1 order by created_at asc;`
+      `select * from Messages where pending=1 and content_type='text/plain' order by created_at asc;`
     );
     return res as LocalMessage[];
   } catch (error) {
@@ -622,17 +621,6 @@ export async function deleteQueuedPendingStatus(conversation_id: string) {
     console.error("Failed to delete queued pending status: ", error);
     throw error;
   }
-}
-
-export async function updateLocalMessageUploadStatusSql(
-  local_id: string,
-  status: string
-) {
-  const db = getDb();
-  try {
-    const query = `UPDATE messages SET upload_status = ?, updated_at = updated_at = CURRENT_TIMESTAMP WHERE local_id = ?`;
-    await db.runAsync(query, [status, local_id]);
-  } catch (error) {}
 }
 
 export async function markMessageFileUploadedByLocalIdSql(

@@ -1,6 +1,7 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, ImageSourcePropType } from "react-native";
 import React, { ReactNode } from "react";
 import { useAppStore } from "@/lib/zustand/store/useAppStore";
+import MediaModal from "./MediaModal";
 
 const MediaModalProvider = ({ children }: { children: ReactNode }) => {
   const { isMedialModalVisible, setIsMediaModalVisible } = useAppStore();

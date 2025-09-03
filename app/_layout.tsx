@@ -11,6 +11,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { FilterModal } from "@/components/FilterModal";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import { Provider as PaperProvider } from "react-native-paper";
+import { MediaManager } from "@/lib/mediaManager";
 
 export default function RootLayout() {
   const { fetchUser } = useUserStore();
@@ -33,6 +34,7 @@ export default function RootLayout() {
     (async () => {
       await initializeDatabase();
       await fetchUser();
+      MediaManager.initialize();
       setIsReady(true);
     })();
   }, []);
@@ -40,15 +42,15 @@ export default function RootLayout() {
   if (!fontsLoaded || !isReady) return null;
 
   return (
-    <PaperProvider>
-      <GestureHandlerRootView>
-        <BottomSheetModalProvider>
-          <GlobalProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider>
+        <GlobalProvider>
+          <BottomSheetModalProvider>
             <Stack screenOptions={{ headerShown: false }} />
             <FilterModal />
-          </GlobalProvider>
-        </BottomSheetModalProvider>
-      </GestureHandlerRootView>
-    </PaperProvider>
+          </BottomSheetModalProvider>
+        </GlobalProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
