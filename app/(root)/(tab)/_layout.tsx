@@ -149,7 +149,7 @@ const TabsLayout = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: "#FBFBFD",
+    backgroundColor: "#fff",
     height: 60,
     position: "absolute",
     elevation: 6,

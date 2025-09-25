@@ -1,50 +1,18 @@
-import { ConversationOverviewReturnType } from "../supabase";
+import {
+  Conversation,
+  ConversationOverview,
+  RawMessage,
+} from "@/types/domain/chat";
 import { getDb } from "./db";
-
-export interface Conversation {
-  conversation_id: string;
-  agent_id: string;
-  agent_name: string;
-  agent_avatar: string;
-  avatar_last_update: string;
-}
-export type LocalMessage = {
-  server_id?: string | null;
-  local_id: string;
-  conversation_id: string;
-  sender_role: "user" | "agent";
-  sender_id: string;
-  receiver_id: string;
-  body: string;
-  content_type: string;
-  created_at: string;
-  pending: 0 | 1;
-  status: string;
-  file_name?: string;
-  file_size?: number;
-  mime_type?: string;
-  device_path?: string | null;
-  storage_path?: string | null;
-  upload_status?: string;
-};
-
-export type Message = {
-  local_id: string;
-  conversation_id: string;
-  body: string;
-  sender_role: "agent" | "user";
-  content_type: string;
-  status: string;
-  created_at: string;
-  upload_status?: string;
-  progress?: number;
-};
+import { LocalMessage } from "@/types/api/localDatabase";
 
 export const getAllConversationOverviews = async ({
   range,
+  user_id,
 }: {
   range: Array<number | number>;
-}): Promise<Array<ConversationOverviewReturnType>> => {
+  user_id: string;
+}): Promise<Array<ConversationOverview>> => {
   const offset = range[0];
   const limit = range[1] - range[0];
   const db = getDb();
@@ -70,18 +38,23 @@ export const getAllConversationOverviews = async ({
     FROM Conversations c
     LEFT JOIN Messages m ON c.conversation_id = m.conversation_id
     LEFT JOIN read_state rs ON c.conversation_id = rs.conversation_id
+    -- highlight-start
+    WHERE c.user_id = ? -- Filter conversations by the user's ID
+    -- highlight-end
     GROUP BY c.conversation_id
     ORDER BY latest_message_time DESC
     LIMIT ? OFFSET ?
     `,
-    [limit, offset]
+    // highlight-start
+    [user_id, limit, offset] // Add user_id to the parameters array
+    // highlight-end
   );
 
-  const overviews: Array<ConversationOverviewReturnType> = [];
+  const overviews: Array<ConversationOverview> = [];
 
   for (const conv of convResult) {
     // Step 2: Get the latest message for this conversation
-    const msgResult: LocalMessage[] = await db.getAllAsync(
+    const msgResult: RawMessage[] = await db.getAllAsync(
       `SELECT * FROM Messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1`,
       [conv.conversation_id]
     );
@@ -98,6 +71,8 @@ export const getAllConversationOverviews = async ({
       last_message: latestMessage?.body,
       last_message_time: latestMessage?.created_at,
       last_message_status: latestMessage?.status,
+      last_message_file_name: latestMessage?.file_name,
+      last_message_mime_type: latestMessage?.mime_type,
       last_message_content_type: latestMessage?.content_type,
       last_message_sender_role: latestMessage?.sender_role,
       unread_count: conv.unread_count ?? 0,
@@ -108,8 +83,9 @@ export const getAllConversationOverviews = async ({
 };
 
 export const getConversationOverview = async (
-  conversationId: string
-): Promise<ConversationOverviewReturnType | null> => {
+  conversationId: string,
+  user_id: string
+): Promise<ConversationOverview | null> => {
   const db = getDb();
 
   // Step 1: Get conversation + unread_count
@@ -130,10 +106,10 @@ export const getConversationOverview = async (
     FROM Conversations c
     LEFT JOIN Messages m ON c.conversation_id = m.conversation_id
     LEFT JOIN read_state rs ON c.conversation_id = rs.conversation_id
-    WHERE c.conversation_id = ?
+    WHERE c.conversation_id = ? AND c.user_id = ?
     GROUP BY c.conversation_id
     `,
-    [conversationId]
+    [conversationId, user_id]
   );
 
   if (convResult.length === 0) return null;
@@ -141,7 +117,7 @@ export const getConversationOverview = async (
   const conv = convResult[0];
 
   // Step 2: Get latest message
-  const msgResult: LocalMessage[] = await db.getAllAsync(
+  const msgResult: RawMessage[] = await db.getAllAsync(
     `SELECT * FROM Messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1`,
     [conversationId]
   );
@@ -149,7 +125,7 @@ export const getConversationOverview = async (
   const latestMessage = msgResult?.[0] ?? null;
 
   // Step 3: Build overview
-  const overview: ConversationOverviewReturnType = {
+  const overview: ConversationOverview = {
     conversation_id: conv.conversation_id,
     agent_id: conv.agent_id,
     agent_name: conv.agent_name,
@@ -158,6 +134,8 @@ export const getConversationOverview = async (
     last_message: latestMessage?.body,
     last_message_time: latestMessage?.created_at,
     last_message_status: latestMessage?.status,
+    last_message_file_name: latestMessage?.file_name,
+    last_message_mime_type: latestMessage?.mime_type,
     last_message_content_type: latestMessage?.content_type,
     last_message_sender_role: latestMessage?.sender_role,
     unread_count: conv.unread_count ?? 0,
@@ -171,8 +149,8 @@ export async function insertLocalMessage(m: LocalMessage) {
 
   try {
     const res = await db.runAsync(
-      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status, file_name, file_size, mime_type, upload_status, device_path, storage_path)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status, file_name, file_size, mime_type, upload_status, device_path, storage_path, inserted_at)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         m.server_id ?? null,
         m.local_id ?? null,
@@ -191,6 +169,7 @@ export async function insertLocalMessage(m: LocalMessage) {
         m.upload_status || "uploading",
         m.device_path || null,
         m.storage_path || null,
+        new Date().toISOString(),
       ]
     );
     return res.lastInsertRowId as number | undefined;
@@ -233,10 +212,11 @@ export const updateMessage = async ({
   }
 };
 
-export const insertConversation = async (conv: Conversation) => {
+export const upsertConversation = async (conv: Conversation) => {
   const db = getDb();
   try {
     const {
+      user_id,
       conversation_id,
       agent_id,
       agent_name,
@@ -247,15 +227,17 @@ export const insertConversation = async (conv: Conversation) => {
     const query = `
       INSERT OR REPLACE INTO Conversations (
         conversation_id,
+        user_id,
         agent_id,
         agent_name,
         agent_avatar,
         avatar_last_update
-      ) VALUES (?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
       conversation_id,
+      user_id,
       agent_id,
       agent_name,
       agent_avatar,
@@ -306,7 +288,7 @@ export const getMessagesByConversation = async ({
 }: {
   conversationId: string;
   range: [number, number]; // more accurate typing
-}): Promise<Array<Message>> => {
+}): Promise<Array<RawMessage>> => {
   try {
     if (!conversationId) return [];
 
@@ -315,9 +297,9 @@ export const getMessagesByConversation = async ({
     const limit = range[1] - range[0];
     const offset = range[0];
 
-    const messages = await db.getAllAsync<Message>(
+    const messages = await db.getAllAsync<RawMessage>(
       `
-      SELECT conversation_id, local_id, sender_role, content_type, status, body, created_at FROM Messages
+      SELECT * FROM Messages
       WHERE conversation_id = ?
       ORDER BY datetime(created_at) DESC
       LIMIT ? OFFSET ?
@@ -393,7 +375,7 @@ export const getMessage = async <T>(
 
     return message as T[];
   } catch (error) {
-    console.error("Failed to get conversation: ", error);
+    console.error("Failed to get Message: ", error);
     return [];
   }
 };
@@ -493,14 +475,15 @@ export async function markMessagePendingClearedByCreatedAt(
 
 export async function markMessagePendingByLocalId(
   localId: string,
-  pending: 0 | 1
+  pending: 0 | 1,
+  status: string
 ) {
   const db = getDb();
   try {
-    await db.runAsync(`update Messages set pending=? where local_id=?;`, [
-      pending,
-      localId,
-    ]);
+    await db.runAsync(
+      `update Messages set pending=?, status=? where local_id=?;`,
+      [pending, status, localId]
+    );
   } catch (error) {
     console.error(
       "Failed to mark messsage pending cleared by local id:",
@@ -509,13 +492,13 @@ export async function markMessagePendingByLocalId(
   }
 }
 
-export async function getPendingMessages(): Promise<LocalMessage[] | null> {
+export async function getPendingMessages(): Promise<RawMessage[] | null> {
   const db = getDb();
   try {
     const res = await db.getAllAsync(
-      `select * from Messages where pending=1 and content_type='text/plain' order by created_at asc;`
+      `select * from Messages where pending=1 order by created_at asc;`
     );
-    return res as LocalMessage[];
+    return res as RawMessage[];
   } catch (error) {
     console.error(
       "Failed to mark messsage pending cleared by local id:",
@@ -531,7 +514,7 @@ export async function getLastKnownMessageTime(
   const db = getDb();
   try {
     const res = await db.getAllAsync(
-      `select max(created_at) as t from Messages where conversation_id=?;`,
+      `select max(inserted_at) as t from Messages where conversation_id=?;`,
       [conversationId]
     );
     const rows = res as { t: string }[];

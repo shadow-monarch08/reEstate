@@ -1,3 +1,7 @@
+import { Platform, Linking, Alert } from "react-native";
+import * as IntentLauncher from "expo-intent-launcher";
+import * as FileSystem from "expo-file-system";
+
 export function timeSince(dateString: string): string {
   // Step 1: Replace space with 'T' to form ISO date
   let isoString = dateString.replace(" ", "T");
@@ -91,4 +95,43 @@ export const getMapRegionWithRadius = (latitude: number, radius: number) => {
     latitudeDelta: latitudeDelta * 2,
     longitudeDelta: longitudeDelta * 2,
   };
+};
+
+export const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+};
+
+/**
+ * Opens a local file using the appropriate system UI.
+ * On Android, uses an ACTION_VIEW Intent.
+ * On iOS, uses the Linking API.
+ * @param localUri The local file URI to open.
+ * @param mimeType The MIME type of the file.
+ */
+export const openFileWithApp = async (localUri: string, mimeType: string) => {
+  try {
+    const contentUri = await FileSystem.getContentUriAsync(localUri);
+    if (Platform.OS === "android") {
+      // For Android, we use an Intent to view the file
+      await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
+        data: contentUri,
+        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        type: mimeType,
+      });
+    } else if (Platform.OS === "ios") {
+      // For iOS, the Linking API handles opening the "Open in..." dialog
+      await Linking.openURL(contentUri);
+    }
+  } catch (error: any) {
+    Alert.alert("Error", `Could not open the file: ${error}`);
+    console.error("Error opening file:", error);
+  }
 };

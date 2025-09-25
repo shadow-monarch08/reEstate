@@ -13,7 +13,7 @@ import { getFeaturedProperties, getLatestProperties } from "@/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
 import { NoResult } from "@/components/NoResult";
-import { SearchButton } from "@/components/Button";
+import SearchButton from "@/components/atoms/SearchButton";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import Animated, {
   runOnJS,
@@ -26,9 +26,9 @@ import Animated, {
 function getGreeting() {
   const hour = new Date().getHours();
 
-  if (hour >= 5 && hour < 15) {
+  if (hour >= 5 && hour < 12) {
     return "Good Morning 🌅";
-  } else if (hour >= 15 && hour < 17) {
+  } else if (hour >= 12 && hour < 17) {
     return "Good Afternoon ☀️";
   } else if (hour >= 17 && hour < 21) {
     return "Good Evening 🌇";

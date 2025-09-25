@@ -11,15 +11,17 @@ import React, { useEffect, useState } from "react";
 import images from "@/constants/images";
 import icons from "@/constants/icons";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
-import { useAppStore } from "@/lib/zustand/store/useAppStore";
+import { AssetMetaData, useAppStore } from "@/lib/zustand/store/useAppStore";
 import { ImagePickerAsset } from "expo-image-picker";
 import { DocumentPickerAsset } from "expo-document-picker";
 import { useChatStore } from "@/lib/zustand/store/useChatStore";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { LocalMessage, Message } from "@/lib/database/localStore";
+import { LocalMessage, RawMessage } from "@/lib/database/localStore";
 import { v4 as uuidv4 } from "uuid";
 import { MediaManager } from "@/lib/mediaManager";
+import { insertConversation } from "@/lib/supabase";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -36,14 +38,17 @@ function formatBytes(bytes: number, decimals = 2) {
 const MediaOverviewModal = () => {
   const { isOverviewModalVisible, setIsOverviewModalVisible, assetProvider } =
     useAppStore();
-  const { activeConversationData, addMessage, updateWithOrderChange, bus } =
-    useChatStore();
-  const [activeAsset, setActiveAsset] = useState<
-    ImagePickerAsset | DocumentPickerAsset | null
-  >(null);
+  const {
+    activeConversationData,
+    bus,
+    updateActiveConversationData,
+    setActiveConversationId,
+  } = useChatStore();
+  const { user } = useUserStore();
+  const [activeAsset, setActiveAsset] = useState<AssetMetaData | null>(null);
   const [assetMapHolder, setAssetMapHolder] = useState<Map<
     string,
-    { asset: ImagePickerAsset | DocumentPickerAsset; msg: string }
+    { asset: AssetMetaData; msg: string }
   > | null>(null);
 
   useEffect(() => {
@@ -66,20 +71,13 @@ const MediaOverviewModal = () => {
 
   useEffect(() => {
     if (assetProvider) {
-      setActiveAsset(assetProvider.asset[0]);
+      setActiveAsset(assetProvider.assets[0]);
       const assetMap = new Map() as typeof assetMapHolder;
-      for (const asset of assetProvider.asset) {
-        if (assetProvider.assetType === "Doc") {
-          assetMap?.set(asset.uri, {
-            asset: asset as DocumentPickerAsset,
-            msg: "",
-          });
-        } else {
-          assetMap?.set(asset.uri, {
-            asset: asset as ImagePickerAsset,
-            msg: "",
-          });
-        }
+      for (const asset of assetProvider.assets) {
+        assetMap?.set(asset.uri, {
+          asset: asset,
+          msg: "",
+        });
       }
       setAssetMapHolder(assetMap);
     }
@@ -87,86 +85,47 @@ const MediaOverviewModal = () => {
 
   const handleSend = async () => {
     if (assetMapHolder) {
-      for (const [key, value] of assetMapHolder) {
-        // 1. Create a controlled, permanent copy in the 'sent' folder
-        const permanentSentUri = await MediaManager.saveSentImage(
-          value.asset.uri
-        );
-        if (assetProvider?.assetType === "Doc") {
-          const asset = value.asset as DocumentPickerAsset;
-          let msg: Message = {
-            local_id: uuidv4(),
-            content_type: `file/${asset.mimeType?.split("/")[0]}`,
-            body: JSON.stringify({
-              file_name: asset.name,
-              mime_type: asset.mimeType,
-              file_size: asset.size,
-              message: value.msg.length > 0 ? value.msg : null,
-              uri: permanentSentUri,
-            }),
-            conversation_id: activeConversationData.conversation_id,
-            status: "pending",
-            sender_role: "user",
-            upload_status: "uploading",
-            progress: 0,
-            created_at: new Date().toISOString(),
-          };
-          addMessage(msg);
-          updateWithOrderChange({
-            last_message: msg.body,
-            last_message_time: msg.created_at,
-            last_message_content_type: msg.content_type,
-            last_message_status: msg.status,
-            last_message_sender_role: msg.sender_role,
-            conversation_id: activeConversationData.conversation_id,
+      let conversation_id = activeConversationData.conversation_id;
+      if (activeConversationData.newConversation && user) {
+        const conversationId = await insertConversation({
+          data: {
+            agent_id: activeConversationData.agent_id,
+            user_id: user.id,
+          },
+        });
+
+        if (conversationId) {
+          conversation_id = conversationId.id;
+          updateActiveConversationData({
+            conversation_id: conversationId.id,
           });
-          bus.sendFileMessage(asset, {
-            ...msg,
-            file_name: asset.name,
-            file_size: asset.size,
-            mime_type: asset.mimeType,
-            sender_id: "",
-            receiver_id: activeConversationData.agent_id,
-            pending: 1,
-          });
-        } else {
-          const asset = value.asset as ImagePickerAsset;
-          let msg: Message = {
-            local_id: uuidv4(),
-            content_type: asset.mimeType || "image/jpeg",
-            body: JSON.stringify({
-              file_name: asset.fileName,
-              mime_type: asset.mimeType,
-              file_size: asset.fileSize,
-              message: value.msg.length > 0 ? value.msg : null,
-              uri: permanentSentUri,
-            }),
-            conversation_id: activeConversationData.conversation_id,
-            status: "pending",
-            sender_role: "user",
-            upload_status: "uploading",
-            progress: 0,
-            created_at: new Date().toISOString(),
-          };
-          addMessage(msg);
-          updateWithOrderChange({
-            last_message: msg.body,
-            last_message_time: msg.created_at,
-            last_message_content_type: msg.content_type,
-            last_message_status: msg.status,
-            last_message_sender_role: msg.sender_role,
-            conversation_id: activeConversationData.conversation_id,
-          });
-          bus.sendFileMessage(asset, {
-            ...msg,
-            file_name: asset.fileName ?? "",
-            file_size: asset.fileSize,
-            mime_type: asset.mimeType,
-            sender_id: "",
-            receiver_id: activeConversationData.agent_id,
-            pending: 1,
-          });
+          setActiveConversationId(conversationId.id);
         }
+      }
+      for (const [key, { asset, msg }] of assetMapHolder) {
+        // 1. Create a controlled, permanent copy in the 'sent' folder
+        const permanentSentUri = await MediaManager.saveSentImage(asset.uri);
+        let message: RawMessage = {
+          local_id: uuidv4(),
+          content_type: assetProvider?.assetType!,
+          body: msg.length > 0 ? msg : null,
+          conversation_id: conversation_id,
+          status: "pending",
+          sender_role: "user",
+          upload_status: "uploading",
+          progress: 0,
+          created_at: new Date().toISOString(),
+        };
+        bus.sendFileMessage({
+          ...message,
+          file_name: asset.file_name,
+          file_size: asset.file_size,
+          mime_type: asset.mime_type,
+          sender_id: "",
+          device_path: permanentSentUri,
+          receiver_id: activeConversationData.agent_id,
+          pending: 1,
+        });
       }
       setIsOverviewModalVisible(false);
     }
@@ -182,8 +141,14 @@ const MediaOverviewModal = () => {
       if (!result.canceled || result.assets) {
         setAssetMapHolder((prev) => {
           const newMap = new Map(prev);
-          newMap.set(result.assets[0].uri, {
-            asset: result.assets[0] as ImagePickerAsset,
+          const asset = result.assets[0];
+          newMap.set(asset.uri, {
+            asset: {
+              file_name: asset.fileName || "File",
+              file_size: asset.fileSize || 0,
+              mime_type: asset.mimeType || "image",
+              uri: asset.uri,
+            },
             msg: "",
           });
           return newMap;
@@ -199,8 +164,14 @@ const MediaOverviewModal = () => {
       if (!result.canceled || result.assets) {
         setAssetMapHolder((prev) => {
           const newMap = new Map(prev);
-          newMap.set(result.assets[0].uri, {
-            asset: result.assets[0] as DocumentPickerAsset,
+          const asset = result.assets[0];
+          newMap.set(asset.uri, {
+            asset: {
+              file_name: asset.name,
+              file_size: asset.size || 0,
+              mime_type: asset.mimeType || "file",
+              uri: asset.uri,
+            },
             msg: "",
           });
           return newMap;
@@ -220,7 +191,7 @@ const MediaOverviewModal = () => {
         >
           <View className="bg-primary-100 rounded-2xl p-4 h-64 flex justify-center items-center">
             {activeAsset &&
-              ("name" in activeAsset ? (
+              (assetProvider?.assetType === "Doc" ? (
                 <View className="flex flex-col gap-2 items-center">
                   <Image
                     className="size-20 rounded-md"
@@ -231,10 +202,10 @@ const MediaOverviewModal = () => {
                     numberOfLines={1}
                     className="text-base font-rubik text-black-200"
                   >
-                    {activeAsset.name}
+                    {activeAsset.file_name}
                   </Text>
                   <Text className="text-sm font-rubik text-black-300">
-                    {formatBytes(activeAsset.size || 0)}
+                    {formatBytes(activeAsset.file_size || 0)}
                   </Text>
                 </View>
               ) : (

@@ -1,0 +1,20 @@
+export type LocalMessage = {
+  server_id?: string | null;
+  local_id: string;
+  conversation_id: string;
+  sender_role: "user" | "agent";
+  sender_id: string;
+  receiver_id: string;
+  body: string | null;
+  content_type: "doc" | "image" | "text";
+  created_at: string;
+  pending: 0 | 1;
+  status: string;
+  file_name?: string | null;
+  file_size?: number | null;
+  mime_type?: string | null;
+  device_path?: string | null;
+  storage_path?: string | null;
+  upload_status?: string | null;
+  progress?: number;
+};

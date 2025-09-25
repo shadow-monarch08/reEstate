@@ -25,7 +25,7 @@ import {
 import { useGlobalContext } from "@/lib/global-provider";
 import icons from "@/constants/icons";
 import MultiSlider, { LabelProps } from "@ptomasroos/react-native-multi-slider";
-import { Button } from "./Button";
+import { Button } from "./atoms/Button";
 import { router, useLocalSearchParams } from "expo-router";
 import CheckBox from "./CheckBox";
 import { useSupabase } from "@/lib/useSupabase";

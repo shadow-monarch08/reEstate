@@ -1,247 +1,119 @@
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { Image } from "react-native";
-import icons from "@/constants/icons";
-import ChatInput from "@/components/ChatInput";
-import { v4 as uuidv4 } from "uuid";
-import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
-import { simpleFormatTimestamp } from "@/utils";
+import ChatInput from "@/components/molecules/ChatInput";
 import {
-  getConversation,
-  getLastKnownMessageTime,
-  insertConversation,
-  markConversationRead,
-  Message,
-} from "@/lib/database/localStore";
-import { useChatStore } from "@/lib/zustand/store/useChatStore";
-import { upsertConversation } from "@/lib/supabase";
-import { useUserStore } from "@/lib/zustand/store/useUserStore";
+  MediaModal,
+  MediaModalProvider,
+  MediaOverviewModal,
+  MediaOverviewProvider,
+} from "@/features/chat/components/conversations";
+import {
+  LoadingAgentMessage,
+  LoadingUserMessage,
+} from "@/components/MessageCards";
 import { EmptyChatCard } from "@/components/NoResult";
-import MediaModalProvider from "@/components/MediaModalProvider";
-import MediaModal from "@/components/MediaModal";
-import * as ImagePicker from "expo-image-picker";
+import icons from "@/constants/icons";
+import {
+  getLastKnownMessageTime,
+  markConversationRead,
+} from "@/lib/database/localStore";
+import { insertConversation } from "@/lib/supabase";
+import { AssetMetaData, useAppStore } from "@/lib/zustand/store/useAppStore";
+import { useChatStore } from "@/lib/zustand/store/useChatStore";
+import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import * as DocumentPicker from "expo-document-picker";
-import { useAppStore } from "@/lib/zustand/store/useAppStore";
-import MediaOverviewModal from "@/components/MediaOverviewModal";
-import MediaOverviewProvider from "@/components/MediaOverviewProvider";
-import images from "@/constants/images";
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  BackHandler,
+  FlatList,
+  Image,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { v4 as uuidv4 } from "uuid";
+import MessageRenderer from "@/features/chat/components/messages/MessageRenderer";
+import { RawMessage } from "@/types/domain/chat";
+import { LoadingMessageRenderer } from "@/features/chat/components/messages/LoadingMessageRenderer";
+import { LocalMessage } from "@/types/api/localDatabase";
 
-const LoadingAgentMessage = () => (
-  <View className="w-full flex flex-col items-end mt-3">
-    <View className="max-w-[80%] flex flex-row gap-2 rounded-[1rem] rounded-ee-md bg-primary-100 px-5 py-4 items-end">
-      {/* timestamp placeholder */}
-      <View className="h-full flex flex-row justify-end">
-        <View className="h-3 w-6 bg-gray-200/40 rounded-md" />
-      </View>
-      {/* message text placeholder */}
-      <View className="h-5 w-40 bg-gray-200/40 rounded-md" />
-    </View>
-  </View>
-);
+// const AgentMessage = ({ msg }: { msg: RawMessage }) => {
+//   return (
+//     <View className="w-full flex flex-col items-start px-5 py-1">
+//       {msg.content_type.split("/")[0] === "text" ? (
+//         <AgentTextTypeMessage msg={msg} />
+//       ) : JSON.parse(msg.body).mime_type.split("/")[0] === "image" ? (
+//         <AgentImageTypeMessage msg={msg} />
+//       ) : (
+//         <AgentDocumentTypeMessage msg={msg} />
+//       )}
+//     </View>
+//   );
+// };
+// const UserMessage = ({ msg }: { msg: RawMessage }) => {
+//   const [isMessageSelected, setIsMessageSelected] = useState(false);
+//   const { selectedMessageCount, addToActiveMessage, deleteFromActiveMessage } =
+//     useAppStore();
 
-function formatBytes(bytes: number, decimals = 2) {
-  if (bytes === 0) return "0 Bytes";
+//   const onPressHandler = () => {
+//     if (isMessageSelected) {
+//       deleteFromActiveMessage(msg.local_id);
+//       setIsMessageSelected(false);
+//     } else {
+//       addToActiveMessage(msg.local_id);
+//       setIsMessageSelected(true);
+//     }
+//   };
 
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-}
-
-// Skeleton bubble for user (right side)
-const LoadingUserMessage = () => (
-  <View className="w-full flex flex-col items-start mt-3">
-    <View className="max-w-[80%] flex flex-row-reverse gap-2 rounded-[1rem] rounded-ss-md bg-primary-300 px-5 py-4 items-end">
-      {/* message text placeholder */}
-      <View className="h-5 w-32 bg-gray-200/40 rounded-md" />
-      {/* timestamp + tick placeholder */}
-      <View className="flex flex-row gap-1 items-start justify-end h-full">
-        <View className="size-4 rounded-full bg-gray-200/40" />
-        <View className="h-3 w-6 bg-gray-200/40 rounded-md" />
-      </View>
-    </View>
-  </View>
-);
-
-const AgentMessage = ({ msg }: { msg: Message }) => {
-  return (
-    <View className="w-full flex flex-col items-start mt-3">
-      {msg.content_type.split("/")[0] === "text" ? (
-        <View className="max-w-[80%] flex flex-row gap-2 rounded-[1rem] rounded-ss-md bg-primary-100 px-5 py-4 items-end">
-          <Text className="text-wrap flex-wrap flex-shrink font-rubik text-base mt-0.5 text-black-300">
-            {msg.body}
-          </Text>
-          <View className="flex flex-row gap-1 items-center">
-            <Text className="font-rubik text-xs text-black-300">
-              {simpleFormatTimestamp(msg.created_at)}
-            </Text>
-          </View>
-        </View>
-      ) : msg.content_type.split("/")[0] === "image" ? (
-        <TouchableOpacity
-          activeOpacity={0.6}
-          className="max-w-[80%] w-2/3 rounded-[1rem] rounded-ss-md bg-primary-100 p-2 relative"
-        >
-          <Image
-            className="h-72 w-full rounded-[1rem]"
-            source={{ uri: JSON.parse(msg.body).uri }}
-          />
-          <Text className="text-wrap flex-wrap flex-shrink font-rubik text-base mt-0.5 text-black-300">
-            {JSON.parse(msg.body).msg}
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          activeOpacity={0.6}
-          className="max-w-[80%] w-2/3 rounded-[1rem] rounded-ss-md bg-primary-100 p-2 pb-8 relative"
-        >
-          <View className="flex-row gap-3 items-center p-2 bg-primary-200 rounded-lg w-full">
-            <Image
-              className="size-6"
-              tintColor={"#FBFBFD"}
-              source={icons.doc}
-            />
-            <View className="flex flex-col justify-center items-start gap-1">
-              <Text
-                numberOfLines={1}
-                className="font-rubik text-base mt-0.5 text-accent-100 w-48"
-              >
-                {JSON.parse(msg.body).file_name}
-              </Text>
-              <Text className="font-rubik text-xs mt-0.5 text-slate-300">
-                {formatBytes(JSON.parse(msg.body).file_size)}
-              </Text>
-            </View>
-          </View>
-          {JSON.parse(msg.body).message && (
-            <View className="mt-2 px-1">
-              <Text className="text-wrap flex-wrap flex-shrink font-rubik text-base mt-0.5 text-accent-100">
-                {JSON.parse(msg.body).message}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
-const UserMessage = ({ msg }: { msg: Message }) => {
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "pending":
-        return icons.clock;
-      case "sent":
-        return icons.tick;
-      case "received":
-        return icons.tick_double;
-      case "read":
-        return icons.tick_double;
-      default:
-        return icons.bell;
-    }
-  };
-  return (
-    <View className="w-full flex flex-col items-end mt-3">
-      {msg.content_type.split("/")[0] === "text" ? (
-        <View className="max-w-[80%] flex flex-row rounded-[1rem] rounded-ee-md gap-1 bg-primary-300 px-5 py-4 items-end">
-          <Text className="text-wrap flex-wrap flex-shrink font-rubik text-base mt-0.5 text-accent-100">
-            {msg.body}
-          </Text>
-          <View className="flex flex-row gap-1 items-center">
-            <Text className="font-rubik text-xs mt-0.5 text-accent-100">
-              {simpleFormatTimestamp(msg.created_at)}
-            </Text>
-            <Image
-              source={getStatusIcon(msg.status)}
-              tintColor={msg.status !== "read" ? "#FBFBFD" : "#93c5fd"}
-              className="size-5"
-            />
-          </View>
-        </View>
-      ) : msg.content_type.split("/")[0] === "image" ? (
-        <TouchableOpacity
-          activeOpacity={0.6}
-          className="max-w-[80%] w-2/3 rounded-[1rem] rounded-ee-md bg-primary-300 p-2 relative"
-        >
-          <View className="relative">
-            <Image
-              className="h-72 w-full rounded-[1rem]"
-              source={{ uri: JSON.parse(msg.body).uri }}
-            />
-            <Image
-              className="h-72 w-full rounded-[1rem] absolute top-0 left-0"
-              source={images.image_gradient}
-              resizeMode="cover"
-            />
-          </View>
-          {JSON.parse(msg.body).message && (
-            <View className="mt-2">
-              <Text className="text-wrap flex-wrap pl-1 flex-shrink font-rubik text-base mt-0.5 mb-3 text-accent-100">
-                {JSON.parse(msg.body).message}
-              </Text>
-            </View>
-          )}
-          <View className="flex-row gap-1 items-center absolute bottom-2 right-3">
-            <Text className="font-rubik text-xs mt-0.5 text-accent-100">
-              {simpleFormatTimestamp(msg.created_at)}
-            </Text>
-            <Image
-              source={getStatusIcon(msg.status)}
-              tintColor={msg.status !== "read" ? "#FBFBFD" : "#93c5fd"}
-              className="size-5"
-            />
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          activeOpacity={0.6}
-          className="max-w-[80%] w-2/3 rounded-[1rem] rounded-ee-md bg-primary-300 p-2 pb-8 relative"
-        >
-          <View className="flex-row gap-3 items-center p-2 bg-blue-500 rounded-lg w-full">
-            <Image
-              className="size-6"
-              tintColor={"#FBFBFD"}
-              source={icons.doc}
-            />
-            <View className="flex flex-col justify-center items-start gap-1">
-              <Text
-                numberOfLines={1}
-                className="font-rubik text-base mt-0.5 text-accent-100 w-48"
-              >
-                {JSON.parse(msg.body).file_name}
-              </Text>
-              <Text className="font-rubik text-xs mt-0.5 text-slate-300">
-                {formatBytes(JSON.parse(msg.body).file_size)}
-              </Text>
-            </View>
-          </View>
-          {JSON.parse(msg.body).message && (
-            <View className="mt-2 px-1">
-              <Text className="text-wrap flex-wrap flex-shrink font-rubik text-base mt-0.5 text-accent-100">
-                {JSON.parse(msg.body).message}
-              </Text>
-            </View>
-          )}
-          <View className="flex-row gap-1 items-center absolute bottom-1 right-3">
-            <Text className="font-rubik text-xs mt-0.5 text-accent-100">
-              {simpleFormatTimestamp(msg.created_at)}
-            </Text>
-            <Image
-              source={getStatusIcon(msg.status)}
-              tintColor={msg.status !== "read" ? "#FBFBFD" : "#93c5fd"}
-              className="size-5"
-            />
-          </View>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-};
+//   const onLongPressHandler = () => {
+//     if (selectedMessageCount === 0) {
+//       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+//       addToActiveMessage(msg.local_id);
+//       setIsMessageSelected(true);
+//     }
+//   };
+//   return (
+//     <Pressable
+//       onLongPress={onLongPressHandler}
+//       onPress={() => {
+//         if (selectedMessageCount > 0) {
+//           onPressHandler();
+//         } else {
+//         }
+//       }}
+//       className="w-full flex flex-col items-end py-1 px-5"
+//       style={{
+//         backgroundColor:
+//           isMessageSelected && selectedMessageCount > 0
+//             ? "#0061FF1A"
+//             : "transparent",
+//       }}
+//     >
+//       {msg.content_type.split("/")[0] === "text" ? (
+//         <UserTextTypeMessage
+//           onPressHandler={onPressHandler}
+//           onLongPressHandler={onLongPressHandler}
+//           msg={msg}
+//         />
+//       ) : JSON.parse(msg.body).mime_type.split("/")[0] === "image" ? (
+//         <UserImageTypeMessage
+//           onPressHandler={onPressHandler}
+//           onLongPressHandler={onLongPressHandler}
+//           msg={msg}
+//         />
+//       ) : (
+//         <UserDocumentTypeMessage
+//           onPressHandler={onPressHandler}
+//           onLongPressHandler={onLongPressHandler}
+//           msg={msg}
+//         />
+//       )}
+//     </Pressable>
+//   );
+// };
 
 // Main loader: show 5–6 skeleton messages in random order
 export const LoadingChatSkeleton = () => {
@@ -250,6 +122,13 @@ export const LoadingChatSkeleton = () => {
     "agent",
     "user",
     "agent",
+    "agent",
+    "user",
+    "agent",
+    "user",
+    "agent",
+    "user",
+    "user",
     "agent",
     "user",
     "agent",
@@ -271,32 +150,82 @@ export const LoadingChatSkeleton = () => {
 
 const HeaderComponent = React.memo(() => {
   const { activeConversationData } = useChatStore();
-
+  const { selectedMessageCount, resetSelectedMessages } = useAppStore();
   return (
-    <View className="shadow-slate-200 shadow-lg bg-accent-100 flex px-5 py-4 flex-row justify-between w-full items-center">
-      <View className="flex flex-row gap-2 items-center">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Image source={icons.back_arrow} className="size-7" />
-        </TouchableOpacity>
-        <View className="overflow-hidden size-14 rounded-full">
-          <Image
-            src={activeConversationData?.agent_avatar}
-            className="h-14 w-16"
-            resizeMode="cover"
-          />
+    <View className="shadow-slate-200 h-20 relative shadow-sm bg-accent-100 w-full z-30">
+      <View className="w-full px-4 flex flex-row justify-between h-full items-center">
+        <View className="flex flex-row gap-2 items-center">
+          <TouchableOpacity onPress={() => router.back()}>
+            <Image source={icons.back_arrow} className="size-7" />
+          </TouchableOpacity>
+          <View className="overflow-hidden size-12 rounded-full">
+            <Image
+              src={activeConversationData?.agent_avatar}
+              className="h-12 w-14"
+              resizeMode="cover"
+            />
+          </View>
+          <Text className="text-lg font-rubik-medium text-black-300">
+            {activeConversationData?.agent_name}
+          </Text>
         </View>
-        <Text className="text-xl font-rubik-medium text-black-300">
-          {activeConversationData?.agent_name}
-        </Text>
+        <View className="flex flex-row gap-6 items-center">
+          <TouchableOpacity>
+            <Image
+              source={icons.phone}
+              className="size-7"
+              tintColor="#191D31"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Image
+              source={icons.video}
+              className="size-7"
+              tintColor="#191D31"
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View className="flex flex-row gap-3 items-center">
-        <TouchableOpacity>
-          <Image source={icons.phone} className="size-8" tintColor="#191D31" />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Image source={icons.video} className="size-8" tintColor="#191D31" />
-        </TouchableOpacity>
-      </View>
+
+      {selectedMessageCount > 0 && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          className="absolute left-0 top-0 w-full px-4 flex flex-row justify-between h-full items-center bg-accent-100"
+        >
+          <View className="flex flex-row gap-5 items-center">
+            <TouchableOpacity onPress={resetSelectedMessages}>
+              <Image source={icons.back_arrow} className="size-7" />
+            </TouchableOpacity>
+            <Text className="text-2xl font-rubik-medium text-black-300">
+              {selectedMessageCount}
+            </Text>
+          </View>
+          <View className="flex flex-row gap-6 items-center">
+            <TouchableOpacity>
+              <Image
+                source={icons.forward}
+                className="size-7"
+                tintColor="#191D31"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Image
+                source={icons.dustbin}
+                className="size-7"
+                tintColor="#191D31"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Image
+                source={icons.more}
+                className="size-7"
+                tintColor="#191D31"
+              />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 });
@@ -309,13 +238,10 @@ const FullChat = () => {
     messages,
     loadingMessages,
     loadingMoreMessages,
-    addMessage,
     activeConversationId,
     activeConversationData,
     updateActiveConversationData,
     setActiveConversationId,
-    fetchNewConversation,
-    updateWithOrderChange,
     updateWithoutOrderChange,
     bus,
   } = useChatStore();
@@ -324,6 +250,8 @@ const FullChat = () => {
     setIsMediaModalVisible,
     setIsOverviewModalVisible,
     setAssetProvider,
+    selectedMessageCount,
+    isOverviewModalVisible,
   } = useAppStore();
 
   const mediaContent = [
@@ -337,7 +265,16 @@ const FullChat = () => {
           multiple: true,
         });
         if (!result.canceled || result.assets) {
-          setAssetProvider({ asset: result.assets, assetType: "Doc" });
+          const assetArray: AssetMetaData[] = [];
+          for (const asset of result.assets) {
+            assetArray.push({
+              file_name: asset.name,
+              file_size: asset.size || 0,
+              mime_type: asset.mimeType || "file",
+              uri: asset.uri,
+            });
+          }
+          setAssetProvider({ assets: assetArray, assetType: "doc" });
           setIsOverviewModalVisible(true);
           setIsMediaModalVisible(false);
         }
@@ -355,7 +292,16 @@ const FullChat = () => {
           allowsMultipleSelection: true,
         });
         if (!result.canceled || result.assets) {
-          setAssetProvider({ asset: result.assets, assetType: "Img" });
+          const assetArray: AssetMetaData[] = [];
+          for (const asset of result.assets) {
+            assetArray.push({
+              file_name: asset.fileName || "File",
+              file_size: asset.fileSize || 0,
+              mime_type: asset.mimeType || "Image",
+              uri: asset.uri,
+            });
+          }
+          setAssetProvider({ assets: assetArray, assetType: "image" });
           setIsOverviewModalVisible(true);
           setIsMediaModalVisible(false);
         }
@@ -406,6 +352,24 @@ const FullChat = () => {
   const [initialLoading, setInitialLoading] = useState(false);
 
   useEffect(() => {
+    const backAction = () => {
+      setIsOverviewModalVisible(false);
+      // highlight-start
+      return isOverviewModalVisible; // This is the key to preventing the default behavior
+      // highlight-end
+    };
+
+    // Add the event listener
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+
+    // Cleanup function: remove the event listener when the component unmounts
+    return () => backHandler.remove();
+  }, [isOverviewModalVisible]);
+
+  useEffect(() => {
     (async () => {
       if (activeConversationId !== activeConversationData.conversation_id) {
         await initaiteMessages(activeConversationData.conversation_id);
@@ -445,11 +409,22 @@ const FullChat = () => {
 
   const handleMessage = useCallback(
     async (m?: string) => {
-      let tempConversationId;
       if ((text && text.trim().length > 0) || m) {
+        let msg: LocalMessage = {
+          conversation_id: activeConversationData.conversation_id,
+          local_id: uuidv4(),
+          content_type: "text",
+          body: (text || m) ?? null,
+          created_at: new Date().toISOString(),
+          status: "pending",
+          sender_role: "user" as "user" | "agent",
+          receiver_id: activeConversationData.agent_id,
+          sender_id: "",
+          pending: 1,
+        };
         if (activeConversationData.newConversation && user) {
           setInitialLoading(true);
-          const conversationId = await upsertConversation({
+          const conversationId = await insertConversation({
             data: {
               agent_id: activeConversationData.agent_id,
               user_id: user.id,
@@ -457,67 +432,25 @@ const FullChat = () => {
           });
 
           if (conversationId) {
-            await insertConversation({
-              agent_avatar: activeConversationData.agent_avatar,
-              agent_id: activeConversationData.agent_id,
-              agent_name: activeConversationData.agent_name,
-              avatar_last_update: activeConversationData.avatar_last_update,
-              conversation_id: conversationId.id,
-            });
-            tempConversationId = conversationId.id;
+            msg.conversation_id = conversationId.id;
             updateActiveConversationData({
               conversation_id: conversationId.id,
-              newConversation: false,
             });
             setActiveConversationId(conversationId.id);
             setInitialLoading(false);
-            await fetchNewConversation(
-              tempConversationId || activeConversationData.conversation_id
-            );
           }
         }
+        setText("");
+        await bus.sendMessage(msg, false);
       }
-      const msg = {
-        local_id: uuidv4(),
-        content_type: "text/plain",
-        body: (text || m) ?? "",
-        conversation_id:
-          tempConversationId || activeConversationData.conversation_id,
-        created_at: new Date().toISOString(),
-        status: "pending",
-        sender_role: "user" as "user" | "agent",
-      };
-      addMessage(msg);
-      updateWithOrderChange({
-        last_message: msg.body,
-        last_message_time: msg.created_at,
-        last_message_content_type: msg.content_type,
-        last_message_status: msg.status,
-        last_message_sender_role: msg.sender_role,
-        conversation_id:
-          tempConversationId || activeConversationData.conversation_id,
-      });
-      setText("");
-      await bus.sendMessage(
-        {
-          ...msg,
-          receiver_id: activeConversationData.agent_id,
-          sender_id: "",
-          pending: 1,
-        },
-        false
-      );
     },
     [activeConversationData, text]
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: Message }) =>
-      item.sender_role === "agent" ? (
-        <AgentMessage msg={item} />
-      ) : (
-        <UserMessage msg={item} />
-      ),
+    ({ item }: { item: RawMessage }) => {
+      return <MessageRenderer message={item} />;
+    },
     [messages]
   );
 
@@ -527,19 +460,19 @@ const FullChat = () => {
         <MediaModalProvider>
           <HeaderComponent />
           <FlatList
-            className="px-5 h-full"
+            className="h-full"
             data={Array.from(messages.values() ?? [])}
             keyExtractor={(item) => item.local_id}
             renderItem={renderItem}
             ListEmptyComponent={
               loadingMessages ? (
-                <LoadingChatSkeleton />
+                <LoadingMessageRenderer />
               ) : (
                 <EmptyChatCard handleMessage={handleMessage} />
               )
             }
             inverted={true}
-            contentContainerClassName="pt-5"
+            contentContainerClassName="pt-1 pb-1"
           />
           <ChatInput
             value={text}

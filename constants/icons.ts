@@ -19,15 +19,19 @@ import chat from "@/assets/icons/chat.png";
 import clip from "@/assets/icons/clip.png";
 import clock from "@/assets/icons/clock.png";
 import condo from "@/assets/icons/condo.png";
+import cross_h from "@/assets/icons/cross_h.png";
 import cutlery from "@/assets/icons/cutlery.png";
 import doc from "@/assets/icons/doc.png";
 import doc_h from "@/assets/icons/doc_h.png";
 import dog from "@/assets/icons/dog.png";
+import download_h from "@/assets/icons/download_h.png";
 import dumbell from "@/assets/icons/dumbell.png";
 import duplex from "@/assets/icons/duplex.png";
+import dustbin from "@/assets/icons/dustbin.png";
 import edit from "@/assets/icons/edit.png";
 import expand from "@/assets/icons/expand.png";
 import filter from "@/assets/icons/filter.png";
+import forward from "@/assets/icons/forward.png";
 import gallery from "@/assets/icons/gallery.png";
 import gallery_h from "@/assets/icons/gallery_h.png";
 import google from "@/assets/icons/google.png";
@@ -76,6 +80,7 @@ import tick_double from "@/assets/icons/tick_double.png";
 import time_down from "@/assets/icons/time-down.png";
 import time_up from "@/assets/icons/time-up.png";
 import townhouse from "@/assets/icons/townhouse.png";
+import upload_h from "@/assets/icons/upload_h.png";
 import video from "@/assets/icons/video.png";
 import villa from "@/assets/icons/villa.png";
 import wallet from "@/assets/icons/wallet.png";
@@ -104,15 +109,19 @@ export default {
   clip,
   clock,
   condo,
+  cross_h,
   cutlery,
   doc,
   doc_h,
   dog,
+  download_h,
   dumbell,
   duplex,
+  dustbin,
   edit,
   expand,
   filter,
+  forward,
   gallery,
   gallery_h,
   google,
@@ -161,6 +170,7 @@ export default {
   time_down,
   time_up,
   townhouse,
+  upload_h,
   video,
   villa,
   wallet,

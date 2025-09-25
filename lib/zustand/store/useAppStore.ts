@@ -3,15 +3,24 @@ import { DocumentPickerAsset } from "expo-document-picker";
 import { ImagePickerAsset } from "expo-image-picker";
 import { create } from "zustand";
 
+export type AssetMetaData = {
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  uri: string;
+};
+
 interface AppState {
   internetStatus: "online" | "offline";
   filterDetail: FilterDetailReturnType | null;
   filterDetailLoading: boolean;
   isMedialModalVisible: boolean;
   isOverviewModalVisible: boolean;
+  selectedMessageCount: number;
+  selectedMessageSet: Set<string>;
   assetProvider: {
-    asset: DocumentPickerAsset[] | ImagePickerAsset[];
-    assetType: "Doc" | "Img";
+    assets: AssetMetaData[];
+    assetType: "doc" | "image";
   } | null;
 }
 
@@ -21,9 +30,12 @@ interface AppStateHandlers {
   setIsMediaModalVisible: (p: boolean) => void;
   setIsOverviewModalVisible: (p: boolean) => void;
   setAssetProvider: (p: {
-    asset: DocumentPickerAsset[] | ImagePickerAsset[];
-    assetType: "Doc" | "Img";
+    assets: AssetMetaData[];
+    assetType: "doc" | "image";
   }) => void;
+  resetSelectedMessages: () => void;
+  addToActiveMessage: (localId: string) => void;
+  deleteFromActiveMessage: (localId: string) => void;
 }
 
 const initialState: AppState = {
@@ -33,9 +45,11 @@ const initialState: AppState = {
   isMedialModalVisible: false,
   isOverviewModalVisible: false,
   assetProvider: null,
+  selectedMessageCount: 0,
+  selectedMessageSet: new Set(),
 };
 
-export const useAppStore = create<AppState & AppStateHandlers>((set) => ({
+export const useAppStore = create<AppState & AppStateHandlers>((set, get) => ({
   ...initialState,
   setInternetStatus: (status: "online" | "offline") =>
     set({
@@ -58,6 +72,32 @@ export const useAppStore = create<AppState & AppStateHandlers>((set) => ({
       });
     }
   },
+  resetSelectedMessages: () =>
+    set({
+      selectedMessageCount: 0,
+      selectedMessageSet: new Set(),
+    }),
+  addToActiveMessage: (localId: string) =>
+    set((items) => {
+      const newSet = new Set(items.selectedMessageSet);
+      newSet.add(localId);
+      return {
+        ...items,
+        selectedMessageCount: items.selectedMessageCount + 1,
+        selectedMessageSet: newSet,
+      };
+    }),
+  deleteFromActiveMessage: (localId: string) => {
+    set((items) => {
+      const newSet = new Set(items.selectedMessageSet);
+      newSet.delete(localId);
+      return {
+        ...items,
+        selectedMessageCount: items.selectedMessageCount - 1,
+        selectedMessageSet: newSet,
+      };
+    });
+  },
   setIsMediaModalVisible: (p: boolean) =>
     set({
       isMedialModalVisible: p,
@@ -67,8 +107,8 @@ export const useAppStore = create<AppState & AppStateHandlers>((set) => ({
       isOverviewModalVisible: p,
     }),
   setAssetProvider: (p: {
-    asset: DocumentPickerAsset[] | ImagePickerAsset[];
-    assetType: "Doc" | "Img";
+    assets: AssetMetaData[];
+    assetType: "doc" | "image";
   }) =>
     set({
       assetProvider: p,

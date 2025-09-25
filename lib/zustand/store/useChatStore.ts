@@ -8,10 +8,15 @@ import {
   getAllConversationOverviews,
   getConversationOverview,
   getMessagesByConversation,
-  Message,
+  upsertConversation,
+  RawMessage,
 } from "@/lib/database/localStore";
-import { ConversationOverviewReturnType } from "@/lib/supabase";
+import {
+  ConversationOverviewReturnType,
+  insertConversation,
+} from "@/lib/supabase";
 import { create } from "zustand";
+import { useUserStore } from "./useUserStore";
 
 export type ActiveConversationData = {
   agent_avatar: string;
@@ -26,7 +31,7 @@ interface ChatState {
   conversationOverview: Map<string, ConversationOverviewReturnType>;
   conversationDisplayOrder: Array<string>;
   conversationtLoading: boolean;
-  messages: Map<string, Message>;
+  messages: Map<string, RawMessage>;
   loadingMessages: boolean;
   loadingMoreMessages: boolean;
   activeConversationId: string | null;
@@ -49,20 +54,25 @@ interface ConversatioUpdateHandler {
 interface ConversationFetchHandler {
   fetchConversationOverview: ({
     range,
+    userId,
   }: {
     range: Array<number | number>;
+    userId: string;
   }) => Promise<void>;
-  fetchNewConversation: (conversationId: string) => Promise<void>;
+  fetchNewConversation: (
+    conversationId: string,
+    userId: string
+  ) => Promise<void>;
 }
 
 interface MessageHandlers {
-  addMessage: (msg: Message) => void;
+  addMessage: (msg: RawMessage) => void;
   initaiteMessages: (conversationId: string) => Promise<void>;
   fetchMoreMessages: (
     conversationId: string,
     range: [number, number]
   ) => Promise<void>;
-  updateMessage: (localId: string, update: Partial<Message>) => void;
+  updateMessage: (localId: string, update: Partial<RawMessage>) => void;
   setActiveConversationId: (conversationId: string | null) => void;
   emptyMessages: () => void;
 }
@@ -81,7 +91,7 @@ const initialState: ChatState = {
   conversationOverview: new Map<string, ConversationOverviewReturnType>(),
   conversationDisplayOrder: [],
   conversationtLoading: false,
-  messages: new Map<string, Message>(),
+  messages: new Map<string, RawMessage>(),
   loadingMessages: false,
   loadingMoreMessages: false,
   activeConversationId: null,
@@ -109,9 +119,81 @@ export const useChatStore = create<
     local_id: string;
     upload_progress: number;
   }) => {
-    console.log(
-      `upload pregressed ${data.upload_progress} for local id ${data.local_id}`
+    if (data.upload_progress === 0)
+      get().updateMessage(data.local_id, {
+        upload_status: "uploading",
+      });
+    else if (data.upload_progress === -1)
+      get().updateMessage(data.local_id, {
+        upload_status: "failed",
+      });
+    else if (data.upload_progress === 100)
+      get().updateMessage(data.local_id, {
+        upload_status: "uploaded",
+      });
+  };
+
+  const cancelUploading = ({ local_id }: { local_id: string }) => {
+    get().updateMessage(local_id, {
+      upload_status: "failed",
+    });
+    bus.cancelUpload({ local_id });
+  };
+
+  const newDownloadFile = (downloadedFile: {
+    localId: string;
+    body: string;
+    upload_status: string;
+  }) => {
+    get().updateMessage(downloadedFile.localId, {
+      body: downloadedFile.body,
+      upload_status: downloadedFile.upload_status,
+    });
+  };
+
+  const outgoingMessage = async (
+    msg: RawMessage & { sender_id: string; receiver_id: string }
+  ) => {
+    const activeConversationData = get().activeConversationData;
+    const conversationOverview = get().conversationOverview.get(
+      msg.conversation_id
     );
+    get().addMessage({
+      local_id: msg.local_id,
+      conversation_id: msg.conversation_id,
+      body: msg.body,
+      status: msg.status,
+      content_type: msg.content_type,
+      created_at: msg.created_at,
+      sender_role: "user",
+      progress: msg.progress || null,
+      upload_status: msg.upload_status || null,
+    });
+    if (!conversationOverview) {
+      if (activeConversationData.newConversation) {
+        await upsertConversation({
+          user_id: msg.sender_id,
+          agent_avatar: activeConversationData.agent_avatar,
+          agent_id: activeConversationData.agent_id,
+          agent_name: activeConversationData.agent_name,
+          avatar_last_update: activeConversationData.avatar_last_update,
+          conversation_id: msg.conversation_id,
+        });
+        get().updateActiveConversationData({
+          newConversation: false,
+        });
+      }
+      await get().fetchNewConversation(msg.conversation_id, msg.sender_id);
+    }
+    get().updateWithOrderChange({
+      conversation_id: msg.conversation_id,
+      last_message: msg.body,
+      last_message_time: msg.created_at,
+      last_message_status: msg.status,
+      last_message_content_type: msg.content_type,
+      last_message_sender_role: msg.sender_role,
+      unread_count: 0,
+    });
   };
 
   const incomingMessage = (msg: PostgrestChangesMessagePayload) => {
@@ -139,7 +221,7 @@ export const useChatStore = create<
             : conversationOverview.unread_count + 1,
       });
     } else {
-      get().fetchNewConversation(msg.conversation_id);
+      get().fetchNewConversation(msg.conversation_id, msg.sender_id);
     }
   };
 
@@ -152,18 +234,6 @@ export const useChatStore = create<
     get().updateMessage(msgAck.local_id, {
       status: msgAck.status,
     });
-  };
-
-  const msgSync = (msgSync: { conversation_id: string; local_id: string }) => {
-    get().updateWithoutOrderChange({
-      conversation_id: msgSync.conversation_id,
-      last_message_status: "sent",
-    });
-    if (msgSync.conversation_id === get().activeConversationId) {
-      get().updateMessage(msgSync.local_id, {
-        status: "sent",
-      });
-    }
   };
 
   const statusSync = (statusSync: {
@@ -186,15 +256,19 @@ export const useChatStore = create<
 
   bus
     .off("message:incoming", incomingMessage)
+    .off("message:outgoing", outgoingMessage)
     .off("message:ack", incomingAck)
-    .off("message:sync", msgSync)
     .off("status:sync", statusSync)
     .off("upload:progress", uploadProgress)
+    .off("upload:cancel", cancelUploading)
+    .off("file:download", newDownloadFile)
     .on("message:incoming", incomingMessage)
+    .on("message:outgoing", outgoingMessage)
     .on("message:ack", incomingAck)
-    .on("message:sync", msgSync)
     .on("status:sync", statusSync)
-    .on("upload:progress", uploadProgress);
+    .on("upload:progress", uploadProgress)
+    .on("upload:cancel", cancelUploading)
+    .on("file:download", newDownloadFile);
 
   return {
     ...initialState,
@@ -269,15 +343,20 @@ export const useChatStore = create<
       }),
     fetchConversationOverview: async ({
       range = [0, 20],
+      userId,
     }: {
       range: Array<number | number>;
+      userId: string;
     }) => {
       try {
         set({
           conversationtLoading: true,
         });
 
-        const result = await getAllConversationOverviews({ range });
+        const result = await getAllConversationOverviews({
+          range,
+          user_id: userId,
+        });
 
         const conversationMap = new Map<
           string,
@@ -302,9 +381,9 @@ export const useChatStore = create<
       }
     },
 
-    fetchNewConversation: async (conversationId: string) => {
+    fetchNewConversation: async (conversationId: string, userId: string) => {
       try {
-        const result = await getConversationOverview(conversationId);
+        const result = await getConversationOverview(conversationId, userId);
 
         set((state) => {
           const newOverview = new Map(state.conversationOverview);
@@ -325,7 +404,7 @@ export const useChatStore = create<
         console.error("Error fetching new conversation overview: ", error);
       }
     },
-    addMessage: (msg: Message) => {
+    addMessage: (msg: RawMessage) => {
       set((state) => {
         const newMap = new Map([[msg.local_id, msg], ...state.messages]);
         return {
@@ -336,8 +415,8 @@ export const useChatStore = create<
     },
     initaiteMessages: async (conversationId: string) => {
       set({
-        loadingMessages: true,
         messages: new Map(),
+        loadingMessages: true,
       });
       const messages = await getMessagesByConversation({
         conversationId,
@@ -345,7 +424,7 @@ export const useChatStore = create<
       });
 
       set((state) => {
-        const newMap = new Map<string, Message>();
+        const newMap = new Map<string, RawMessage>();
         messages.forEach((message) => {
           newMap.set(message.local_id, message);
         });
@@ -370,7 +449,7 @@ export const useChatStore = create<
       });
 
       set((state) => {
-        const newMap = new Map<string, Message>();
+        const newMap = new Map<string, RawMessage>();
         messages.forEach((message) => {
           newMap.set(message.local_id, message);
         });
@@ -384,7 +463,7 @@ export const useChatStore = create<
     setActiveConversationId: (conversationId: string | null) => {
       set((state) => ({ ...state, activeConversationId: conversationId }));
     },
-    updateMessage: (localId: string, update: Partial<Message>) => {
+    updateMessage: (localId: string, update: Partial<RawMessage>) => {
       set((state) => {
         const existingMessage = state.messages.get(localId);
         const newMap = new Map(state.messages);

@@ -94,9 +94,30 @@ const saveReceivedImage = async (
   return uri;
 };
 
+/**
+ * Deletes all media directories and their contents.
+ * This is a destructive operation and cannot be undone.
+ */
+const deleteAllMedia = async (): Promise<void> => {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(BASE_DIR);
+
+    if (dirInfo.exists) {
+      console.log(`Deleting base media directory at ${BASE_DIR}...`);
+      await FileSystem.deleteAsync(BASE_DIR, { idempotent: true });
+      console.log("All media directories have been deleted successfully.");
+    } else {
+      console.log("Media directory does not exist, nothing to delete.");
+    }
+  } catch (error) {
+    console.error("Failed to delete media directories:", error);
+  }
+};
+
 // Export all functions as a single object
 export const MediaManager = {
   initialize,
   saveSentImage,
   saveReceivedImage,
+  deleteAllMedia,
 };

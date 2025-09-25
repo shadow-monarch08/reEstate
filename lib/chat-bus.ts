@@ -1,32 +1,27 @@
+import { RealtimeChannel } from "@supabase/supabase-js";
 import EventEmitter from "eventemitter3";
 import Constants from "expo-constants";
 import {
-  insertLocalMessage,
+  deleteQueuedPendingStatus,
+  fetchQueuedPendingStatusSync,
+  getLastKnownMessageTime,
+  getLastReadMessageTime,
+  getMessage,
   getPendingMessages,
+  insertLocalMessage,
+  markConversationRead,
+  markMessagePendingByLocalId,
   markMessageSyncedByLocalId,
   messageExists,
-  getLastKnownMessageTime,
-  markMessagePendingByLocalId,
-  markMessagePendingClearedByCreatedAt,
-  LocalMessage,
-  markConversationRead,
-  updateMessage,
-  getMessage,
-  getLastReadMessageTime,
   queuePendingStatusSync,
-  fetchQueuedPendingStatusSync,
-  deleteQueuedPendingStatus,
+  updateMessage,
 } from "./database/localStore";
 import { Supabase } from "./supabase";
-import {
-  RealtimeChannel,
-  RealtimePostgresInsertPayload,
-} from "@supabase/supabase-js";
 // Add or replace this method inside your ChatBus class
 import * as tus from "tus-js-client";
-import { ImagePickerAsset } from "expo-image-picker";
 import { MediaManager } from "./mediaManager";
-import { DocumentPickerAsset } from "expo-document-picker";
+import { RawMessage } from "@/types/domain/chat";
+import { LocalMessage } from "@/types/api/localDatabase";
 // envelope types
 export type BroadcastMessagePayload = {
   __type: "message";
@@ -35,9 +30,9 @@ export type BroadcastMessagePayload = {
   server_id?: string | null; // optional reference from server
   sender_id: string;
   receiver_id: string;
-  content_type: string;
+  content_type: "text" | "image" | "doc";
   sender_role: "user" | "agent";
-  body: string;
+  body: string | null;
   created_at: string; // ISO
   // file metadata (kept in local sqlite)
   storage_path?: string | null; // key/path in Supabase storage
@@ -66,7 +61,7 @@ export type PostgrestChangesMessagePayload = {
 };
 
 export type BroadcastAckPayload = {
-  __type: "ack" | "afterAck";
+  __type: "ack-1" | "ack-2";
   conversation_id: string;
   local_id: string;
   server_id?: string | null;
@@ -76,7 +71,7 @@ export type BroadcastAckPayload = {
 };
 
 export type AcknoledgmentAckPayload = {
-  __type: "ack-2";
+  __type: "ack-3";
   conversation_id: string;
   local_id: string;
 };
@@ -86,7 +81,8 @@ export class ChatBus extends EventEmitter {
   private uid: string | null = null;
   private activeCId: string | null = null;
   private started = false;
-  private ACK_TIMEOUT = 1000; // ms to wait for ack before fallback to server write
+  private ACK_TIMEOUT = 2000; // ms to wait for ack before fallback to server write
+  private activeUploads: Map<string, tus.Upload> = new Map(); // Key: localId, Value: TUS Upload instance
 
   async start(userId: string, activeConversationId: string | null) {
     if (this.started) return;
@@ -110,19 +106,6 @@ export class ChatBus extends EventEmitter {
         console.error("handle broadcast err", err)
       );
     });
-    this.globalChannel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `receiver_id=eq.${userId}`,
-      },
-      (e: RealtimePostgresInsertPayload<PostgrestChangesMessagePayload>) => {
-        const payload = e.new;
-        this._onPostgrestChangeMessage(payload);
-      }
-    );
 
     this.globalChannel.subscribe();
 
@@ -138,6 +121,29 @@ export class ChatBus extends EventEmitter {
     if (this.globalChannel) Supabase.removeChannel(this.globalChannel);
     this.globalChannel = null;
     this.started = false;
+  }
+
+  async cancelUpload({ local_id }: { local_id: string }) {
+    console.log(`Received cancel request for upload: ${local_id}`);
+    const uploadToCancel = this.activeUploads.get(local_id);
+
+    if (uploadToCancel) {
+      uploadToCancel.abort(); // Abort the upload
+      await updateMessage({
+        msg: {
+          upload_status: "failed",
+          storage_path: null,
+        },
+        checkCondition: { local_id: local_id },
+        conditionOperator: { local_id: "=" },
+      });
+
+      this.emit("upload:progress", {
+        local_id: local_id,
+        upload_progress: -1,
+      });
+      // The onError handler in sendFileMessage will handle cleanup.
+    }
   }
 
   private async _createAckPromise(
@@ -166,87 +172,10 @@ export class ChatBus extends EventEmitter {
     if (!payload || !payload.__type) return;
     if (payload.__type === "message") {
       await this._onIncomingMessage(payload as BroadcastMessagePayload);
-    } else if (["ack", "ack-2", "afterAck"].includes(payload.__type)) {
+    } else if (["ack-1", "ack-3", "ack-2"].includes(payload.__type)) {
       await this._onAck(
         payload as BroadcastAckPayload | AcknoledgmentAckPayload
       );
-    }
-  }
-
-  private async _onPostgrestChangeMessage(p: PostgrestChangesMessagePayload) {
-    // dedupe: if this message already exists (by server_id or local_id), skip
-    const exists = await messageExists(p.id ?? null, p.local_id);
-    if (exists) return;
-
-    await insertLocalMessage({
-      server_id: p.id ?? null,
-      local_id: p.local_id,
-      conversation_id: p.conversation_id,
-      sender_role: p.sender_role,
-      sender_id: p.sender_id,
-      receiver_id: p.receiver_id,
-      body: p.body,
-      content_type: p.content_type,
-      created_at: p.created_at,
-      pending: 0,
-      status: "sent",
-    });
-    console.log("postgre incoming message");
-    // emit incoming event for UIs
-    this.emit("message:incoming", p);
-
-    if (p.conversation_id === this.activeCId) {
-      await markConversationRead(p.conversation_id, new Date().toISOString());
-    }
-
-    // optional: if we received this message and it's from agent to user, send ack back to sender
-    if (p.sender_role === "agent") {
-      const ack: BroadcastAckPayload = {
-        __type: "ack",
-        conversation_id: p.conversation_id,
-        local_id: p.local_id,
-        server_id: p.id ?? null,
-        sender_id: this.uid!,
-        acked_at: new Date().toISOString(),
-        status:
-          this.activeCId ?? "" === p.conversation_id ? "read" : "received",
-      };
-      try {
-        // send ack to sender's global channel (sender_id is the user's id when agent sent, or vice versa)
-        Supabase.channel(`inbox:agent:${p.sender_id}`).send({
-          type: "broadcast",
-          event: "message",
-          payload: ack,
-        });
-        const ackResult = await this._createAckPromise(p.local_id);
-        if (!ackResult.success) {
-          const { data, error } = await Supabase.from(
-            "pending_status_sync"
-          ).insert([
-            {
-              local_id: p.local_id,
-              conversation_id: p.conversation_id,
-              ack_role: "user",
-              status:
-                this.activeCId === p.conversation_id ? "read" : "received",
-            },
-          ]);
-          if (error) {
-            console.error(
-              "Error while sycing status to server via postgrest change message: ",
-              error
-            );
-            await queuePendingStatusSync(
-              p.conversation_id,
-              p.local_id,
-              this.activeCId === p.conversation_id ? "read" : "received"
-            );
-          }
-        }
-      } catch (e) {
-        // ignore ack failures - it's best-effort
-        console.warn("failed to send ack", e);
-      }
     }
   }
 
@@ -256,7 +185,7 @@ export class ChatBus extends EventEmitter {
     if (exists) return;
 
     // insert local message
-    await insertLocalMessage({
+    const msg: LocalMessage = {
       server_id: p.server_id ?? null,
       local_id: p.local_id,
       conversation_id: p.conversation_id,
@@ -268,10 +197,18 @@ export class ChatBus extends EventEmitter {
       created_at: p.created_at,
       pending: 0,
       status: "sent",
-    });
+      file_name: p.file_name ?? null,
+      mime_type: p.mime_type ?? null,
+      file_size: p.file_size ?? null,
+      device_path: null,
+      storage_path: p.storage_path ?? null,
+      upload_status: "failed",
+    };
+
+    await insertLocalMessage(msg);
 
     // emit incoming event for UIs
-    this.emit("message:incoming", p);
+    this.emit("message:incoming", msg);
     if (p.conversation_id === this.activeCId) {
       await markConversationRead(p.conversation_id, new Date().toISOString());
     }
@@ -279,7 +216,7 @@ export class ChatBus extends EventEmitter {
     // optional: if we received this message and it's from agent to user, send ack back to sender
     if (p.sender_role === "agent") {
       const ack: BroadcastAckPayload = {
-        __type: "ack",
+        __type: "ack-1",
         conversation_id: p.conversation_id,
         local_id: p.local_id,
         server_id: p.server_id ?? null,
@@ -299,7 +236,7 @@ export class ChatBus extends EventEmitter {
         if (!ackResult.success) {
           const { data, error } = await Supabase.from(
             "pending_status_sync"
-          ).insert([
+          ).upsert([
             {
               local_id: p.local_id,
               conversation_id: p.conversation_id,
@@ -331,10 +268,10 @@ export class ChatBus extends EventEmitter {
     // An ack for a previously sent message. If it contains server_id we can mark local message synced.
     if (!p.local_id) return;
     // mark pending cleared locally
-    if (p.__type === "ack") {
-      await markMessagePendingByLocalId(p.local_id, 0);
+    if (p.__type === "ack-1") {
       this.emit("message:ack", p);
-    } else if (p.__type === "afterAck") {
+      await markMessagePendingByLocalId(p.local_id, 0, p.status);
+    } else if (p.__type === "ack-2") {
       this._onIncomingAck(p);
     } else {
       this.emit("acknowledgment:ack", p);
@@ -360,11 +297,11 @@ export class ChatBus extends EventEmitter {
 
     try {
       const ack: AcknoledgmentAckPayload = {
-        __type: "ack-2",
+        __type: "ack-3",
         local_id: p.local_id,
         conversation_id: p.conversation_id,
       };
-      await Supabase.channel(`inbox:user:${p.sender_id}`).send({
+      await Supabase.channel(`inbox:agent:${p.sender_id}`).send({
         type: "broadcast",
         event: "message",
         payload: ack,
@@ -378,9 +315,25 @@ export class ChatBus extends EventEmitter {
   // Send message: optimistic local insert + broadcast to agent inbox + wait for ack -> fallback to server write
   async sendMessage(message: LocalMessage, skipLocalInsert: boolean) {
     if (!this.uid) throw new Error("not started");
-
     // 1) insert locally as pending
+    // const {
+    //   data: { session },
+    // } = await Supabase.auth.getSession();
+    // if (!session) throw new Error("User not authenticated");
+    // const token = session.access_token;
+    // console.log(token);
     if (!skipLocalInsert) {
+      this.emit("message:outgoing", {
+        conversation_id: message.conversation_id,
+        local_id: message.local_id,
+        sender_role: "user",
+        body: message.body,
+        created_at: message.created_at,
+        content_type: message.content_type,
+        status: message.status,
+        sender_id: this.uid,
+        receiver_id: message.receiver_id,
+      });
       await insertLocalMessage({
         conversation_id: message.conversation_id,
         local_id: message.local_id,
@@ -429,28 +382,16 @@ export class ChatBus extends EventEmitter {
     }
 
     // 3) wait for ACK on global channel with timeout
-    const ackPromise = new Promise<{ success: boolean }>((resolve) => {
-      const handler = (ack: BroadcastAckPayload) => {
-        if (ack.local_id === message.local_id) {
-          this.off("message:ack", handler as any);
-          resolve({ success: true });
-        }
-      };
-      this.on("message:ack", handler as any);
 
-      // timeout
-      setTimeout(() => {
-        this.off("message:ack", handler as any);
-        resolve({ success: false });
-      }, this.ACK_TIMEOUT);
-    });
-
-    const ackResult = await ackPromise;
+    const ackResult = await this._createAckPromise(
+      message.local_id,
+      "message:ack"
+    );
 
     if (ackResult.success) {
       // ack included server id -> mark local message synced
       const ack: AcknoledgmentAckPayload = {
-        __type: "ack-2",
+        __type: "ack-3",
         local_id: message.local_id,
         conversation_id: message.conversation_id,
       };
@@ -459,7 +400,6 @@ export class ChatBus extends EventEmitter {
         event: "message",
         payload: ack,
       });
-      await markMessageSyncedByLocalId(message.local_id);
       return;
     }
 
@@ -513,14 +453,17 @@ export class ChatBus extends EventEmitter {
    * @param onProgress A callback function to report upload progress (0 to 100).
    */
   async sendFileMessage(
-    asset: ImagePickerAsset | DocumentPickerAsset,
-    message: LocalMessage
+    message: LocalMessage,
+    skipLocalInsert?: boolean
   ): Promise<void> {
     if (!this.uid) throw new Error("ChatBus not started");
 
     // Step 1: Optimistic local insert.
     // The UI can immediately render this message as "uploading...".
-    await insertLocalMessage(message);
+    if (!skipLocalInsert) {
+      this.emit("message:outgoing", { ...message, sender_id: this.uid });
+      await insertLocalMessage(message);
+    }
 
     this.emit("upload:progress", {
       local_id: message.local_id,
@@ -540,7 +483,7 @@ export class ChatBus extends EventEmitter {
 
       // highlight-start
       // In React Native, we fetch the local URI to get the file data as a blob
-      const response = await fetch(asset.uri);
+      const response = await fetch(message.device_path!);
       const fileBlob = await response.blob();
       // highlight-end
 
@@ -548,7 +491,7 @@ export class ChatBus extends EventEmitter {
       const uploadPromise = new Promise<string>((resolve, reject) => {
         const upload = new tus.Upload(fileBlob, {
           endpoint: `${Constants.expoConfig?.extra?.SUPABASE_URL}/storage/v1/upload/resumable`,
-          retryDelays: [0, 3000, 5000, 10000, 20000],
+          retryDelays: [0, 3000, 5000, 10000],
           headers: {
             authorization: `Bearer ${token}`,
             "x-upsert": "true",
@@ -560,10 +503,6 @@ export class ChatBus extends EventEmitter {
           },
           onProgress: (bytesUploaded, bytesTotal) => {
             const percentage = (bytesUploaded / bytesTotal) * 100;
-            this.emit("upload:progress", {
-              local_id: message.local_id,
-              upload_progress: percentage,
-            });
           },
           onError: (error) => {
             console.error("TUS upload failed:", error);
@@ -576,11 +515,12 @@ export class ChatBus extends EventEmitter {
             resolve(publicUrl);
           },
         });
+        this.activeUploads.set(message.local_id, upload);
         upload.start();
       });
 
       // Await the result of the upload
-      const publicUrl = await uploadPromise;
+      await uploadPromise;
 
       this.emit("upload:progress", {
         local_id: message.local_id,
@@ -605,7 +545,6 @@ export class ChatBus extends EventEmitter {
       };
 
       // Step 5: Trigger a flush to send the now-ready message immediately.
-      // highlight-start
       // Call sendMessage, skipping the now-redundant local insert.
       // This is the real-time, broadcast-first approach.
       await this.sendMessage(finalMessage, true);
@@ -628,43 +567,110 @@ export class ChatBus extends EventEmitter {
     }
   }
 
+  async downloadFileForMessage(localId: string) {
+    const fileDetial = await getMessage<{
+      storage_path: string;
+      body: string;
+      file_name: string;
+    }>(
+      ["storage_path", "body", "file_name"],
+      {
+        local_id: "=",
+      },
+      {
+        local_id: localId,
+      }
+    );
+    console.log(
+      `Requesting signed URL for file path: ${fileDetial[0].storage_path}`
+    );
+    try {
+      this.emit("file:download", {
+        localId,
+        body: fileDetial[0].body,
+        upload_status: "downloading",
+      });
+      // 1. Create a signed URL with a 60-second expiration time
+      const { data, error } = await Supabase.storage
+        .from("chat_files") // Your bucket name
+        .createSignedUrl(fileDetial[0].storage_path, 60); // 60 seconds expiration
+
+      if (error) {
+        throw error;
+      }
+
+      const signedUrl = data.signedUrl;
+
+      // 2. Use the temporary signed URL to download the file via MediaManager
+      const newLocalUri = await MediaManager.saveReceivedImage(
+        signedUrl,
+        fileDetial[0].file_name
+      );
+      let newBody = JSON.parse(fileDetial[0].body);
+      newBody = JSON.stringify({ ...newBody, uri: newLocalUri });
+
+      // 3. Update the message in the local database with the new path
+      await updateMessage({
+        msg: {
+          device_path: newLocalUri,
+          body: newBody,
+          upload_status: "downloaded",
+        },
+        checkCondition: {
+          local_id: localId,
+        },
+        conditionOperator: {
+          local_id: "=",
+        },
+      });
+
+      // 4. Notify the UI that the message has been updated
+      this.emit("file:download", {
+        localId,
+        body: newBody,
+        upload_status: "downloaded",
+      });
+
+      return newLocalUri;
+    } catch (error) {
+      console.error("Download failed:", error);
+      this.emit("file:download", {
+        localId,
+        body: fileDetial[0].body,
+        upload_status: "failed",
+      });
+    }
+  }
+
+  async reSend(localId: string) {
+    console.log("resending file for local id: ", localId);
+    const message = await getMessage<LocalMessage>(
+      ["*"],
+      {
+        local_id: "=",
+      },
+      {
+        local_id: localId,
+      }
+    );
+
+    await this.sendFileMessage(message[0], true);
+  }
+
   // find pending local messages and push them to server (called on network regain or periodically)
   async flushPendingToServer() {
     if (!this.uid) return;
     const pending = await getPendingMessages();
     if (!pending?.length) return;
 
-    // group by conversation for convenience
-    const rows = pending.map((p) => ({
-      conversation_id: p.conversation_id,
-      sender_role: "user",
-      sender_id: this.uid!,
-      receiver_id: p.receiver_id,
-      body: p.body,
-      status: p.status,
-      content_type: p.content_type,
-      created_at: p.created_at,
-      local_id: p.local_id ?? null,
-    }));
-
     // batch insert (NOTE: if you have large batches, consider chunking)
     try {
-      const { data, error } = await Supabase.from("messages")
-        .insert(rows)
-        .select("id, conversation_id, local_id");
-      if (error) throw error;
-
-      // match server-inserted rows to local pending rows by conversation + created_at
-      for (const ok of data ?? []) {
-        // mark local pending cleared for matching created_at & conversation
-        await markMessagePendingClearedByCreatedAt(
-          ok.conversation_id,
-          ok.local_id
-        );
-        this.emit("message:sync", {
-          conversation_id: ok.conversation_id,
-          local_id: ok.local_id,
-        });
+      for (const message of pending) {
+        if (message.upload_status === "failed") {
+          this.sendFileMessage(message, true);
+        } else {
+          this.sendMessage(message, true);
+        }
       }
     } catch (e) {
       console.warn("flushPendingToServer failed", e);
@@ -679,7 +685,7 @@ export class ChatBus extends EventEmitter {
     const messages = await fetchQueuedPendingStatusSync(conversation_id);
     for (const m of messages) {
       const ack: BroadcastAckPayload = {
-        __type: "afterAck",
+        __type: "ack-2",
         conversation_id: conversation_id,
         local_id: m.local_id,
         server_id: null,
@@ -717,14 +723,15 @@ export class ChatBus extends EventEmitter {
   ) {
     const since = await getLastKnownMessageTime(conversation_id);
     let q = Supabase.from("messages")
-      .select(
-        "id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, local_id"
-      )
+      .select("*")
       .eq("conversation_id", conversation_id)
       .order("created_at", { ascending: true });
 
-    if (since) q = q.gt("created_at", since);
-    const { data, error } = await q;
+    if (since) q = q.gt("inserted_at", since);
+
+    const { data, error } = await q.overrideTypes<
+      PostgrestChangesMessagePayload[]
+    >();
 
     if (error?.message) {
       console.warn("syncConversationFromServer error", error?.message);
@@ -732,35 +739,48 @@ export class ChatBus extends EventEmitter {
     }
 
     for (const m of data ?? []) {
-      const exists = await messageExists(m.id ?? null, null);
+      const exists = await messageExists(null, m.local_id);
       if (exists) continue;
-      await insertLocalMessage({
+      // insert local message
+      const msg: LocalMessage = {
+        server_id: m.server_id ?? null,
         local_id: m.local_id,
-        server_id: m.id,
         conversation_id: m.conversation_id,
-        sender_role: m.sender_role as "user" | "agent",
+        sender_role: m.sender_role,
         sender_id: m.sender_id,
         receiver_id: m.receiver_id,
         body: m.body,
-        content_type: m.content_type,
+        content_type: m.content_type as "doc" | "image" | "text",
         created_at: m.created_at,
         pending: 0,
         status: "sent",
-      });
+        file_name: m.file_name ?? null,
+        file_size: m.file_size ?? null,
+        device_path: null,
+        storage_path: m.storage_path ?? null,
+        upload_status: "failed",
+      };
+
+      if (m.content_type === "file") {
+        let body = JSON.parse(m.body);
+        msg.body = JSON.stringify({ ...body, uri: null });
+      }
+      await insertLocalMessage(msg);
 
       // emit event for UI
       this.emit("message:incoming", {
         local_id: m.local_id,
         conversation_id: m.conversation_id,
         sender_role: m.sender_role as "user" | "agent",
-        body: m.body,
+        body: msg.body,
         content_type: m.content_type,
         created_at: m.created_at,
         status: "sent",
+        uplod_status: "failed",
       });
 
       const ack: BroadcastAckPayload = {
-        __type: "afterAck",
+        __type: "ack-2",
         conversation_id: conversation_id,
         local_id: m.local_id,
         server_id: m.id ?? null,
@@ -778,7 +798,7 @@ export class ChatBus extends EventEmitter {
       if (!ackResult.success) {
         const { data, error } = await Supabase.from(
           "pending_status_sync"
-        ).insert([
+        ).upsert([
           {
             local_id: m.local_id,
             conversation_id: conversation_id,
@@ -801,7 +821,7 @@ export class ChatBus extends EventEmitter {
     }
   }
 
-  async updatePendingStatus(conversation_id: string) {
+  async updateServerQueuedStatus(conversation_id: string) {
     const { data, error } = await Supabase.from("pending_status_sync")
       .delete()
       .eq("conversation_id", conversation_id)
@@ -851,7 +871,7 @@ export class ChatBus extends EventEmitter {
     for (const c of convs ?? []) {
       convList.push(c.id);
       await this.syncQueuedPendingStatus(c.id, localChannel);
-      await this.updatePendingStatus(c.id);
+      await this.updateServerQueuedStatus(c.id);
       await this.syncConversationFromServer(c.id, localChannel);
     }
 
@@ -877,12 +897,12 @@ export class ChatBus extends EventEmitter {
           {
             sender_role: "=",
             conversation_id: "=",
-            created_at: ">",
+            inserted_at: ">",
           },
           {
             sender_role: "agent",
             conversation_id: conversation_id,
-            created_at: last_read_at,
+            inserted_at: last_read_at,
           }
         );
         const localChannel = Supabase.channel(`inbox:agent:${agent_id}`, {
@@ -890,7 +910,7 @@ export class ChatBus extends EventEmitter {
         });
         for (const message of unread_agent_messages) {
           const ack: BroadcastAckPayload = {
-            __type: "afterAck",
+            __type: "ack-2",
             local_id: message.local_id,
             server_id: message.server_id ?? null,
             sender_id: this.uid,
@@ -908,7 +928,7 @@ export class ChatBus extends EventEmitter {
           if (!ackResult.success) {
             const { data, error } = await Supabase.from(
               "pending_status_sync"
-            ).insert([
+            ).upsert([
               {
                 local_id: message.local_id,
                 conversation_id: conversation_id,

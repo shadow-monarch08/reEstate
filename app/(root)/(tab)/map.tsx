@@ -14,7 +14,7 @@ import MapView, { Marker, Region } from "react-native-maps"; // remove PROVIDER_
 import { SafeAreaView } from "react-native-safe-area-context";
 import Geolocation from "@react-native-community/geolocation";
 import { useIsFocused } from "@react-navigation/native";
-import { SearchButton } from "@/components/Button";
+import SearchButton from "@/components/atoms/SearchButton";
 import { Filter_area } from "@/components/Filters";
 import { router, useLocalSearchParams } from "expo-router";
 import { getMapRegionWithRadius } from "@/utils";

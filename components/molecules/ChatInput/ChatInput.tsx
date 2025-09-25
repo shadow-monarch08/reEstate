@@ -1,23 +1,18 @@
-import { View, Text, Image, TextInput, TouchableOpacity } from "react-native";
-import React, { useState } from "react";
+import { View, Image, TextInput, TouchableOpacity } from "react-native";
+import React from "react";
 import icons from "@/constants/icons";
-import Animated, { ZoomIn, ZoomOut } from "react-native-reanimated";
 import { useAppStore } from "@/lib/zustand/store/useAppStore";
+import type { ChatInputProps } from "./types";
 
-const ChatInput = ({
+const ChatInput: React.FC<ChatInputProps> = ({
   value,
   handleInput,
   placeholder = "Type your message",
   handleSubmit,
-}: {
-  value?: string;
-  handleInput: (param: string) => void;
-  placeholder?: string;
-  handleSubmit: (m?: string) => void;
 }) => {
   const { setIsMediaModalVisible, isMedialModalVisible } = useAppStore();
   return (
-    <View className="w-full px-3 mb-6 flex flex-row gap-3 items-center relative">
+    <View className="w-full px-3 mb-3 flex flex-row gap-3 pt-2 items-center relative">
       <View className="flex flex-1 flex-row gap-2 bg-primary-100 px-4 py-4 rounded-2xl">
         <View className="flex flex-1 flex-row gap-3 items-center">
           <TouchableOpacity>
@@ -77,4 +72,4 @@ const ChatInput = ({
   );
 };
 
-export default ChatInput;
+export default React.memo(ChatInput);

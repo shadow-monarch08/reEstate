@@ -1,6 +1,6 @@
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { AuthError, createClient, PostgrestError } from "@supabase/supabase-js";
 import Constants from "expo-constants";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { mmkvStorage } from "./storage/mmkvStorage";
 
 export const Supabase = createClient(
@@ -284,6 +284,7 @@ export const login = async (): Promise<AuthError | null> => {
 export const logout = async (): Promise<AuthError | null> => {
   try {
     const { error } = await Supabase.auth.signOut();
+    if (!error) await GoogleSignin.signOut();
     return error;
   } catch (error: any) {
     console.error(error);
@@ -1029,7 +1030,7 @@ export const deleteFromMessages = async ({
   }
 };
 
-export const upsertConversation = async ({
+export const insertConversation = async ({
   data,
 }: {
   data: {

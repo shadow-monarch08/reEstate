@@ -33,13 +33,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import PagerView from "react-native-pager-view";
-import { Button, LikeButton } from "@/components/Button";
 import { useWishlistStore } from "@/lib/zustand/store/useWishlistStore";
 import { useChatStore } from "@/lib/zustand/store/useChatStore";
 import Modal from "react-native-modal";
 import { getConversation } from "@/lib/database/localStore";
 import { MapDisplay, MapModal } from "@/components/MapDisplay";
 import { NoResult } from "@/components/NoResult";
+import LikeButton from "@/components/atoms/LikeButton";
+import Button from "@/components/atoms/Button";
 
 const PropertySpec = ({
   icon,
