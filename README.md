@@ -76,7 +76,7 @@ Rentify makes finding your next home effortless. Whether you’re a tenant brows
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-username/rentify.git
+git clone https://github.com/your-username/rentify.git](https://github.com/shadow-monarch08/reEstate.git
 cd rentify
 ```
 
