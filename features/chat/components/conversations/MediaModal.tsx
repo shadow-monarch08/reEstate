@@ -7,7 +7,11 @@ import {
   BackHandler,
 } from "react-native";
 import React, { useEffect } from "react";
-import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import Animated, {
+  BounceIn,
+  FadeInDown,
+  FadeOutDown,
+} from "react-native-reanimated";
 import { useAppStore } from "@/lib/zustand/store/useAppStore";
 
 type props = {
@@ -48,7 +52,8 @@ const MediaModal: React.FC<props> = ({ content }) => {
         >
           <View className="size-full bg-primary-100 items-center justify-evenly gap-5 flex flex-row flex-wrap p-5">
             {content.map((item, i) => (
-              <View
+              <Animated.View
+                entering={FadeInDown.delay(i * 50).duration(200)}
                 key={i}
                 className="flex flex-col gap-2 justify-center items-center"
               >
@@ -70,7 +75,7 @@ const MediaModal: React.FC<props> = ({ content }) => {
                 <Text className="font-rubik text-sm text-black-200">
                   {item.title}
                 </Text>
-              </View>
+              </Animated.View>
             ))}
           </View>
         </Animated.View>

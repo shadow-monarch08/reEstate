@@ -149,8 +149,8 @@ export async function insertLocalMessage(m: LocalMessage) {
 
   try {
     const res = await db.runAsync(
-      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status, file_name, file_size, mime_type, upload_status, device_path, storage_path, inserted_at)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `insert into Messages (server_id, local_id, conversation_id, sender_role, sender_id, receiver_id, body, content_type, created_at, pending, status, file_name, file_size, mime_type, upload_status, device_path, storage_path, img_height, img_width, inserted_at)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         m.server_id ?? null,
         m.local_id ?? null,
@@ -169,6 +169,8 @@ export async function insertLocalMessage(m: LocalMessage) {
         m.upload_status || "uploading",
         m.device_path || null,
         m.storage_path || null,
+        m.img_height || null,
+        m.img_width || null,
         new Date().toISOString(),
       ]
     );

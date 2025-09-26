@@ -16,7 +16,9 @@ export type RawMessage = {
   device_path: string | null;
   storage_path: string | null;
   upload_status: string | null;
-  progress?: number;
+  img_height: number | null;
+  img_width: number | null;
+  progress?: number | null;
 };
 
 export type Conversation = {

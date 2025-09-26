@@ -90,7 +90,7 @@ const UserMessageWrapper = ({
         className={`max-w-[80%] rounded-[1rem] rounded-ee-md bg-primary-300 p-2 relative ${innerContainerClass}`}
       >
         {children}
-        <View className="flex-row gap-1 items-center absolute bottom-3 right-3">
+        <View className="flex-row gap-1 items-center absolute bottom-2 right-3">
           <Text className="font-rubik text-xs mt-0.5 text-accent-100">
             {simpleFormatTimestamp(msg.created_at)}
           </Text>

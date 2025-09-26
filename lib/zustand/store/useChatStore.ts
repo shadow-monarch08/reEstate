@@ -9,14 +9,10 @@ import {
   getConversationOverview,
   getMessagesByConversation,
   upsertConversation,
-  RawMessage,
 } from "@/lib/database/localStore";
-import {
-  ConversationOverviewReturnType,
-  insertConversation,
-} from "@/lib/supabase";
 import { create } from "zustand";
-import { useUserStore } from "./useUserStore";
+import { ConversationOverview, RawMessage } from "@/types/domain/chat";
+import { LocalMessage } from "@/types/api/localDatabase";
 
 export type ActiveConversationData = {
   agent_avatar: string;
@@ -28,10 +24,10 @@ export type ActiveConversationData = {
 };
 
 interface ChatState {
-  conversationOverview: Map<string, ConversationOverviewReturnType>;
+  conversationOverview: Map<string, ConversationOverview>;
   conversationDisplayOrder: Array<string>;
   conversationtLoading: boolean;
-  messages: Map<string, RawMessage>;
+  messages: Map<string, LocalMessage>;
   loadingMessages: boolean;
   loadingMoreMessages: boolean;
   activeConversationId: string | null;
@@ -41,13 +37,13 @@ interface ChatState {
 }
 
 interface ConversatioUpdateHandler {
-  addConversationOverview: (overview: ConversationOverviewReturnType) => void;
+  addConversationOverview: (overview: ConversationOverview) => void;
   deleteConversationOverview: (conversationId: string) => void;
   updateWithoutOrderChange: (
-    updateOverview: Partial<ConversationOverviewReturnType>
+    updateOverview: Partial<ConversationOverview>
   ) => void;
   updateWithOrderChange: (
-    updateOverview: Partial<ConversationOverviewReturnType>
+    updateOverview: Partial<ConversationOverview>
   ) => void;
 }
 
@@ -66,7 +62,7 @@ interface ConversationFetchHandler {
 }
 
 interface MessageHandlers {
-  addMessage: (msg: RawMessage) => void;
+  addMessage: (msg: LocalMessage) => void;
   initaiteMessages: (conversationId: string) => Promise<void>;
   fetchMoreMessages: (
     conversationId: string,
@@ -88,10 +84,10 @@ interface ChatHandler {
 }
 
 const initialState: ChatState = {
-  conversationOverview: new Map<string, ConversationOverviewReturnType>(),
+  conversationOverview: new Map<string, ConversationOverview>(),
   conversationDisplayOrder: [],
   conversationtLoading: false,
-  messages: new Map<string, RawMessage>(),
+  messages: new Map<string, LocalMessage>(),
   loadingMessages: false,
   loadingMoreMessages: false,
   activeConversationId: null,
@@ -158,17 +154,7 @@ export const useChatStore = create<
     const conversationOverview = get().conversationOverview.get(
       msg.conversation_id
     );
-    get().addMessage({
-      local_id: msg.local_id,
-      conversation_id: msg.conversation_id,
-      body: msg.body,
-      status: msg.status,
-      content_type: msg.content_type,
-      created_at: msg.created_at,
-      sender_role: "user",
-      progress: msg.progress || null,
-      upload_status: msg.upload_status || null,
-    });
+    get().addMessage(msg);
     if (!conversationOverview) {
       if (activeConversationData.newConversation) {
         await upsertConversation({
@@ -196,14 +182,14 @@ export const useChatStore = create<
     });
   };
 
-  const incomingMessage = (msg: PostgrestChangesMessagePayload) => {
+  const incomingMessage = (msg: LocalMessage) => {
     const activeConversation = get().activeConversationId;
     const conversationOverview = get().conversationOverview.get(
       msg.conversation_id
     );
 
     if (msg.conversation_id === activeConversation) {
-      get().addMessage({ ...msg });
+      get().addMessage(msg);
     }
 
     if (conversationOverview) {
@@ -273,7 +259,7 @@ export const useChatStore = create<
   return {
     ...initialState,
     bus,
-    addConversationOverview: (overview: ConversationOverviewReturnType) =>
+    addConversationOverview: (overview: ConversationOverview) =>
       set((state) => {
         const newOverview = new Map(state.conversationOverview);
         const newOrder = state.conversationDisplayOrder;
@@ -297,9 +283,7 @@ export const useChatStore = create<
           conversationOverview: newOverview,
         };
       }),
-    updateWithoutOrderChange: (
-      updateOverview: Partial<ConversationOverviewReturnType>
-    ) =>
+    updateWithoutOrderChange: (updateOverview: Partial<ConversationOverview>) =>
       set((state) => {
         const { conversation_id, ...updates } = updateOverview;
         const newOverview = new Map(state.conversationOverview);
@@ -317,9 +301,7 @@ export const useChatStore = create<
           conversationOverview: newOverview,
         };
       }),
-    updateWithOrderChange: (
-      updateOverview: Partial<ConversationOverviewReturnType>
-    ) =>
+    updateWithOrderChange: (updateOverview: Partial<ConversationOverview>) =>
       set((state) => {
         const { conversation_id, ...updates } = updateOverview;
         const newOverview = new Map(state.conversationOverview);
@@ -358,10 +340,7 @@ export const useChatStore = create<
           user_id: userId,
         });
 
-        const conversationMap = new Map<
-          string,
-          ConversationOverviewReturnType
-        >();
+        const conversationMap = new Map<string, ConversationOverview>();
         const conversationIds = result.map((chat) => chat.conversation_id);
 
         for (const conversation of result) {
@@ -404,7 +383,7 @@ export const useChatStore = create<
         console.error("Error fetching new conversation overview: ", error);
       }
     },
-    addMessage: (msg: RawMessage) => {
+    addMessage: (msg: LocalMessage) => {
       set((state) => {
         const newMap = new Map([[msg.local_id, msg], ...state.messages]);
         return {

@@ -8,7 +8,7 @@ export const initializeDatabase = async () => {
       db = await SQLite.openDatabaseAsync("chat.db");
       await db.execAsync(`PRAGMA journal_mode = WAL;`);
       await db.execAsync(`
-        -- DROP TABLE Conversations;
+        --DROP TABLE Conversations;
       CREATE TABLE IF NOT EXISTS Conversations (
     conversation_id TEXT PRIMARY KEY NOT NULL,
     user_id TEXT,
@@ -20,7 +20,7 @@ export const initializeDatabase = async () => {
     `);
 
       await db.execAsync(`
-        -- DROP TABLE Messages;
+      --DROP TABLE Messages;
   CREATE TABLE IF NOT EXISTS Messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id TEXT UNIQUE,
@@ -29,7 +29,7 @@ export const initializeDatabase = async () => {
     sender_role TEXT NOT NULL,
     sender_id TEXT NOT NULL,
     receiver_id TEXT NOT NULL,
-    body TEXT NOT NULL,
+    body TEXT NULL,
     content_type TEXT DEFAULT 'text/plain',
     created_at TEXT NOT NULL,
     pending INTEGER DEFAULT 0,
@@ -43,16 +43,19 @@ export const initializeDatabase = async () => {
     device_path TEXT,
     storage_path TEXT,
     inserted_at TEXT,
+    img_height INTEGER,
+    img_width INTEGER,
     -- upload state
     upload_status TEXT DEFAULT 'idle', -- 'idle'|'uploading'|'uploaded'|'failed'
 
     -- timestamps
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   );
+  ;
 `);
 
       await db.execAsync(`
-        -- DROP TABLE read_state;
+        --DROP TABLE read_state;
   CREATE TABLE IF NOT EXISTS read_state (
     conversation_id TEXT PRIMARY KEY,
     last_read_at TEXT DEFAULT '1970-01-01T00:00:00.000Z'

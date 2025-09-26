@@ -8,6 +8,8 @@ export type AssetMetaData = {
   file_size: number;
   mime_type: string;
   uri: string;
+  img_height?: number;
+  img_width?: number;
 };
 
 interface AppState {

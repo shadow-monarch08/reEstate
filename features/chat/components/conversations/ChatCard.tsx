@@ -31,7 +31,7 @@ const ChatCard = ({
     switch (fileType) {
       case "image":
         return icons.gallery;
-      case "file":
+      case "doc":
         return icons.doc;
       default:
         return icons.bell;
@@ -47,7 +47,7 @@ const ChatCard = ({
     >
       <TouchableOpacity
         activeOpacity={0.6}
-        className="flex flex-row justify-between items-center w-full h-fit relative"
+        className="flex flex-row gap-4 w-full h-fit relative"
         onPress={() =>
           handlePress({
             agent_avatar: item.agent_avatar,
@@ -58,29 +58,29 @@ const ChatCard = ({
           })
         }
       >
-        <View className="flex flex-row gap-4 w-full">
-          <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full">
-            <Image
-              src={item.agent_avatar}
-              className="h-16 w-20"
-              resizeMode="cover"
-            />
-          </View>
-          <View className="flex-1 flex flex-col justify-between py-1">
-            <Text className="text-black-300 font-rubik-medium text-lg flex-1">
-              {item.agent_name}
-            </Text>
-            <View className="flex flex-row gap-2">
-              {item.last_message_sender_role === "user" && (
-                <Image
-                  source={getStatusIcon(item.last_message_status)}
-                  tintColor={
-                    item.last_message_status === "read" ? "#0061ff" : "#666876"
-                  }
-                  className="size-5"
-                />
-              )}
-              {item.last_message_content_type.split("/")[0] === "text" ? (
+        <View className="overflow-hidden flex flex-row justify-center size-16 rounded-full">
+          <Image
+            src={item.agent_avatar}
+            className="h-16 w-20"
+            resizeMode="cover"
+          />
+        </View>
+        <View className="flex-1 flex flex-col justify-between py-1">
+          <Text className="text-black-300 font-rubik-medium text-lg flex-1">
+            {item.agent_name}
+          </Text>
+          <View className="flex flex-row gap-2">
+            {item.last_message_sender_role === "user" && (
+              <Image
+                source={getStatusIcon(item.last_message_status)}
+                tintColor={
+                  item.last_message_status === "read" ? "#0061ff" : "#666876"
+                }
+                className="size-5"
+              />
+            )}
+            {item.last_message ? (
+              item.last_message_content_type === "text" ? (
                 <Text
                   className="text-black-200 font-rubik text-sm flex-1"
                   numberOfLines={1}
@@ -88,16 +88,14 @@ const ChatCard = ({
                   {item.last_message}
                 </Text>
               ) : (
-                <View className="flex flex-row gap-1">
+                <View className="flex-1 flex-row gap-1">
                   <Image
                     className="size-4"
                     tintColor={"#666876"}
-                    source={getFileIcon(
-                      item.last_message_content_type.split("/")[0]
-                    )}
+                    source={getFileIcon(item.last_message_content_type)}
                   />
                   <Text
-                    className="text-black-200 font-rubik text-sm w-52"
+                    className="text-black-200 font-rubik text-sm flex-1"
                     numberOfLines={1}
                   >
                     {
@@ -109,22 +107,29 @@ const ChatCard = ({
                     }
                   </Text>
                 </View>
-              )}
-            </View>
+              )
+            ) : (
+              <Text
+                className="text-black-200 font-rubik italic text-sm flex-1"
+                numberOfLines={1}
+              >
+                No Message available
+              </Text>
+            )}
           </View>
-          <View className="flex flex-col justify-between items-end">
-            {item.unread_count ?? 0 > 0 ? (
-              <View className="rounded-full bg-primary-300 size-7 flex items-center justify-center">
-                <Text className="font-rubik-medium text-white text-xs mt-1">
-                  {item.unread_count}
-                </Text>
-              </View>
-            ) : null}
-            <View className="flex flex-1 flex-row items-end">
-              <Text className="font-rubik-medium text-xs text-black-200">
-                {formatTimestamp(item.last_message_time)}
+        </View>
+        <View className="flex flex-col justify-between items-end">
+          {item.unread_count ?? 0 > 0 ? (
+            <View className="rounded-full bg-primary-300 size-7 flex items-center justify-center">
+              <Text className="font-rubik-medium text-white text-xs mt-1">
+                {item.unread_count}
               </Text>
             </View>
+          ) : null}
+          <View className="flex flex-1 flex-row items-end">
+            <Text className="font-rubik-medium text-xs text-black-200">
+              {item.last_message && formatTimestamp(item.last_message_time)}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>

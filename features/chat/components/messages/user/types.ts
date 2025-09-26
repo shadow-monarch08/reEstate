@@ -31,8 +31,8 @@ export type UserImageMessageType = BaseUserMessageType & {
   device_path: string | null;
   storage_path: string | null;
   upload_status: string;
-  height: number | null;
-  width: number | null;
+  img_height: number | null;
+  img_width: number | null;
   type?: string;
 };
 

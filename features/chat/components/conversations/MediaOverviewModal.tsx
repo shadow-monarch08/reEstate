@@ -123,6 +123,8 @@ const MediaOverviewModal = () => {
           storage_path: null,
           receiver_id: activeConversationData.agent_id,
           pending: 1,
+          img_height: asset.img_height || null,
+          img_width: asset.img_width || null,
         };
         bus.sendFileMessage(message);
       }

@@ -39,6 +39,8 @@ export type BroadcastMessagePayload = {
   file_name?: string | null;
   file_size?: number | null;
   mime_type?: string | null;
+  img_height?: number | null;
+  img_width?: number | null;
 };
 
 export type PostgrestChangesMessagePayload = {
@@ -202,6 +204,8 @@ export class ChatBus extends EventEmitter {
       file_size: p.file_size ?? null,
       device_path: null,
       storage_path: p.storage_path ?? null,
+      img_height: p.img_height ?? null,
+      img_width: p.img_width ?? null,
       upload_status: "failed",
     };
 
@@ -364,6 +368,8 @@ export class ChatBus extends EventEmitter {
       file_name: message.file_name ?? null,
       file_size: message.file_size ?? null,
       mime_type: message.mime_type ?? null,
+      img_height: message.img_height ?? null,
+      img_width: message.img_width ?? null,
       storage_path: message.storage_path ?? null,
     };
 
@@ -419,6 +425,8 @@ export class ChatBus extends EventEmitter {
             file_name: message.file_name ?? null,
             file_size: message.file_size ?? null,
             mime_type: message.mime_type ?? null,
+            img_height: message.img_height ?? null,
+            img_width: message.img_width ?? null,
             storage_path: message.storage_path ?? null,
           },
         ])

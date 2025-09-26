@@ -16,5 +16,7 @@ export type LocalMessage = {
   device_path?: string | null;
   storage_path?: string | null;
   upload_status?: string | null;
-  progress?: number;
+  progress?: number | null;
+  img_height?: number | null;
+  img_width?: number | null;
 };

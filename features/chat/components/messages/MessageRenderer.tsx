@@ -1,11 +1,11 @@
 // src/features/chat/components/messages/MessageRenderer.tsx
-import { RawMessage } from "@/types/domain/chat";
 import React from "react";
 import { UserMessagerRenderer } from "./user";
 import { AgentMessagerRenderer } from "./agent";
+import { LocalMessage } from "@/types/api/localDatabase";
 
 type Props = {
-  message: RawMessage; // you can expand to a union of user/agent messages
+  message: LocalMessage; // you can expand to a union of user/agent messages
 };
 
 export default function MessageRenderer({ message }: Props) {

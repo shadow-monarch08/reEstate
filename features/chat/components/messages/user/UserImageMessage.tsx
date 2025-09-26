@@ -1,5 +1,5 @@
 import { useChatStore } from "@/lib/zustand/store/useChatStore";
-import { UserDocumentMessageType } from "./types";
+import { UserImageMessageType } from "./types";
 import UserMessageWrapper from "./UserMessageWrapper";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
@@ -9,7 +9,7 @@ import { formatBytes } from "@/utils";
 import { ActivityIndicator } from "react-native-paper";
 import React from "react";
 
-const UserImageMessage = ({ msg }: { msg: UserDocumentMessageType }) => {
+const UserImageMessage = ({ msg }: { msg: UserImageMessageType }) => {
   const { bus } = useChatStore();
   return (
     <UserMessageWrapper msg={msg} onPress={() => {}}>
@@ -81,9 +81,9 @@ const UserImageMessage = ({ msg }: { msg: UserDocumentMessageType }) => {
         </View>
       </View>
       {msg.body && (
-        <View className="mt-2">
+        <View className="mt-2 w-[15rem]">
           <Text className="text-wrap flex-wrap pl-1 flex-shrink font-rubik text-base mt-0.5 text-accent-100">
-            {msg.body} {"\t\t\t\t\t\t\t\t\t"}
+            {msg.body} {"\t\t\t\t\t\t\t\t\t\t"}
           </Text>
         </View>
       )}

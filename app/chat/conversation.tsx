@@ -5,10 +5,6 @@ import {
   MediaOverviewModal,
   MediaOverviewProvider,
 } from "@/features/chat/components/conversations";
-import {
-  LoadingAgentMessage,
-  LoadingUserMessage,
-} from "@/components/MessageCards";
 import { EmptyChatCard } from "@/components/NoResult";
 import icons from "@/constants/icons";
 import {
@@ -27,7 +23,6 @@ import {
   BackHandler,
   FlatList,
   Image,
-  Pressable,
   Text,
   TouchableOpacity,
   View,
@@ -36,117 +31,8 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { v4 as uuidv4 } from "uuid";
 import MessageRenderer from "@/features/chat/components/messages/MessageRenderer";
-import { RawMessage } from "@/types/domain/chat";
 import { LoadingMessageRenderer } from "@/features/chat/components/messages/LoadingMessageRenderer";
 import { LocalMessage } from "@/types/api/localDatabase";
-
-// const AgentMessage = ({ msg }: { msg: RawMessage }) => {
-//   return (
-//     <View className="w-full flex flex-col items-start px-5 py-1">
-//       {msg.content_type.split("/")[0] === "text" ? (
-//         <AgentTextTypeMessage msg={msg} />
-//       ) : JSON.parse(msg.body).mime_type.split("/")[0] === "image" ? (
-//         <AgentImageTypeMessage msg={msg} />
-//       ) : (
-//         <AgentDocumentTypeMessage msg={msg} />
-//       )}
-//     </View>
-//   );
-// };
-// const UserMessage = ({ msg }: { msg: RawMessage }) => {
-//   const [isMessageSelected, setIsMessageSelected] = useState(false);
-//   const { selectedMessageCount, addToActiveMessage, deleteFromActiveMessage } =
-//     useAppStore();
-
-//   const onPressHandler = () => {
-//     if (isMessageSelected) {
-//       deleteFromActiveMessage(msg.local_id);
-//       setIsMessageSelected(false);
-//     } else {
-//       addToActiveMessage(msg.local_id);
-//       setIsMessageSelected(true);
-//     }
-//   };
-
-//   const onLongPressHandler = () => {
-//     if (selectedMessageCount === 0) {
-//       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-//       addToActiveMessage(msg.local_id);
-//       setIsMessageSelected(true);
-//     }
-//   };
-//   return (
-//     <Pressable
-//       onLongPress={onLongPressHandler}
-//       onPress={() => {
-//         if (selectedMessageCount > 0) {
-//           onPressHandler();
-//         } else {
-//         }
-//       }}
-//       className="w-full flex flex-col items-end py-1 px-5"
-//       style={{
-//         backgroundColor:
-//           isMessageSelected && selectedMessageCount > 0
-//             ? "#0061FF1A"
-//             : "transparent",
-//       }}
-//     >
-//       {msg.content_type.split("/")[0] === "text" ? (
-//         <UserTextTypeMessage
-//           onPressHandler={onPressHandler}
-//           onLongPressHandler={onLongPressHandler}
-//           msg={msg}
-//         />
-//       ) : JSON.parse(msg.body).mime_type.split("/")[0] === "image" ? (
-//         <UserImageTypeMessage
-//           onPressHandler={onPressHandler}
-//           onLongPressHandler={onLongPressHandler}
-//           msg={msg}
-//         />
-//       ) : (
-//         <UserDocumentTypeMessage
-//           onPressHandler={onPressHandler}
-//           onLongPressHandler={onLongPressHandler}
-//           msg={msg}
-//         />
-//       )}
-//     </Pressable>
-//   );
-// };
-
-// Main loader: show 5–6 skeleton messages in random order
-export const LoadingChatSkeleton = () => {
-  // array of 6 messages, randomly "agent" or "user"
-  const placeholders = [
-    "agent",
-    "user",
-    "agent",
-    "agent",
-    "user",
-    "agent",
-    "user",
-    "agent",
-    "user",
-    "user",
-    "agent",
-    "user",
-    "agent",
-    "user",
-  ];
-
-  return (
-    <View className="px-4">
-      {placeholders.map((type, idx) =>
-        type === "agent" ? (
-          <LoadingAgentMessage key={idx} />
-        ) : (
-          <LoadingUserMessage key={idx} />
-        )
-      )}
-    </View>
-  );
-};
 
 const HeaderComponent = React.memo(() => {
   const { activeConversationData } = useChatStore();
@@ -174,14 +60,14 @@ const HeaderComponent = React.memo(() => {
             <Image
               source={icons.phone}
               className="size-7"
-              tintColor="#191D31"
+              tintColor="#666876"
             />
           </TouchableOpacity>
           <TouchableOpacity>
             <Image
               source={icons.video}
               className="size-7"
-              tintColor="#191D31"
+              tintColor="#666876"
             />
           </TouchableOpacity>
         </View>
@@ -205,22 +91,22 @@ const HeaderComponent = React.memo(() => {
             <TouchableOpacity>
               <Image
                 source={icons.forward}
-                className="size-7"
-                tintColor="#191D31"
+                className="size-8"
+                tintColor="#666876"
               />
             </TouchableOpacity>
             <TouchableOpacity>
               <Image
                 source={icons.dustbin}
                 className="size-7"
-                tintColor="#191D31"
+                tintColor="#666876"
               />
             </TouchableOpacity>
             <TouchableOpacity>
               <Image
                 source={icons.more}
                 className="size-7"
-                tintColor="#191D31"
+                tintColor="#666876"
               />
             </TouchableOpacity>
           </View>
@@ -299,6 +185,8 @@ const FullChat = () => {
               file_size: asset.fileSize || 0,
               mime_type: asset.mimeType || "Image",
               uri: asset.uri,
+              img_height: asset.height,
+              img_width: asset.width,
             });
           }
           setAssetProvider({ assets: assetArray, assetType: "image" });
@@ -448,7 +336,7 @@ const FullChat = () => {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: RawMessage }) => {
+    ({ item }: { item: LocalMessage }) => {
       return <MessageRenderer message={item} />;
     },
     [messages]

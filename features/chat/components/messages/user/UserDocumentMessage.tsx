@@ -1,5 +1,3 @@
-import { AssetMetaData } from "@/lib/zustand/store/useAppStore";
-import { RawMessage } from "@/types/domain/chat";
 import { formatBytes, openFileWithApp } from "@/utils";
 import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 import UserMessageWrapper from "./UserMessageWrapper";
@@ -15,19 +13,12 @@ const UserDocumentMessage = ({ msg }: { msg: UserDocumentMessageType }) => {
 
   const pickAndOpenFile = async () => {
     try {
-      if (msg.body) {
-        const asset: AssetMetaData = JSON.parse(msg.body);
-
-        // 2. Check if sharing is available on the device
-        // 2. Call your new cross-platform function
-        if (asset.uri && asset.mime_type) {
-          await openFileWithApp(
-            asset.uri,
-            asset.mime_type.split("/").splice(1, 2).join("/")
-          );
-        } else {
-          Alert.alert("Error", "Could not determine file type.");
-        }
+      // 2. Check if sharing is available on the device
+      // 2. Call your new cross-platform function
+      if (msg.device_path && msg.mime_type) {
+        await openFileWithApp(msg.device_path, msg.mime_type);
+      } else {
+        Alert.alert("Error", "Could not determine file type.");
       }
     } catch (error: any) {
       Alert.alert("An error occurred:", error);

@@ -2,7 +2,8 @@ import { View, Text, FlatList, Image, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
-import { ChatCard, LoadingChatCard } from "@/components/Card";
+import { LoadingChatCard } from "@/components/Card";
+import { ChatCard } from "@/features/chat/components/conversations";
 import { router } from "expo-router";
 import {
   ActiveConversationData,
