@@ -1,14 +1,10 @@
-Got it 🚀 — thanks for sharing the overview!
-Your app is basically **an all-in-one property rental platform** with **modern discovery, communication, and AI assistance**. Let’s expand that into a professional, GitHub-ready README.
-
 ---
 
-# 🏡 Rentify (Your App Name Here)
+# 🏡 Re-Estate
 
 *A cross-platform mobile app for streamlined property rentals, built with React Native and Supabase.*
 
-![App Demo](./assets/demo.gif)
-*(Replace with a short GIF showing property browsing + chat + AI bot in action)*
+![App Demo] recording in pregress
 
 ---
 
