@@ -1,10 +1,8 @@
----
-
-# 🏡 Re-Estate
+# 🏡 Rentify (Your App Name Here)
 
 *A cross-platform mobile app for streamlined property rentals, built with React Native and Supabase.*
 
-![App Demo]
+![App Demo](./assets/demo.gif)
 *Recording in progress*
 
 ---
@@ -62,6 +60,8 @@ Rentify makes finding your next home effortless. Whether you’re a tenant brows
 * **AI**: Integrated chatbot (powered by OpenAI / similar LLM)
 
 ---
+
+## 📸 Screenshots
 
 ## 📸 Screenshots
 
@@ -217,14 +217,13 @@ README.md
 package.json
 tsconfig.json
 tailwind.config.js
-
 ```
 
 ---
 
 ## 🔮 Future Roadmap
 
-* 🏢 Separate agent dashboard app
+* 🏢 Agent dashboard inside the app
 * 🔔 Push notifications for chat and property alerts
 * 📍 Background location sharing for property visits
 * 🔐 End-to-end encryption for chat messages
