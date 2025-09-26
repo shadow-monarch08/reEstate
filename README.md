@@ -4,7 +4,8 @@
 
 *A cross-platform mobile app for streamlined property rentals, built with React Native and Supabase.*
 
-![App Demo] recording in pregress
+![App Demo]
+*Recording in progress*
 
 ---
 
