@@ -1,4 +1,4 @@
-# 🏡 Rentify (Your App Name Here)
+# 🏡 ReEstate
 
 *A cross-platform mobile app for streamlined property rentals, built with React Native and Supabase.*
 
