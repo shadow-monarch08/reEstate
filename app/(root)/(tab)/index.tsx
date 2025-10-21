@@ -13,7 +13,7 @@ import { getFeaturedProperties, getLatestProperties } from "@/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSupabase } from "@/lib/useSupabase";
 import { NoResult } from "@/components/NoResult";
-import SearchButton from "@/components/atoms/SearchButton";
+import { SearchButton } from "@/components/atoms/Button";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import Animated, {
   runOnJS,

@@ -190,7 +190,7 @@ const MediaOverviewModal = () => {
           exiting={FadeOutDown.duration(100)}
           className="rounded-2xl w-full p-5 pt-7 bg-white shadow-md shadow-black-300"
         >
-          <View className="bg-primary-100 rounded-2xl p-4 h-64 flex justify-center items-center">
+          <View className="bg-primary-100 rounded-2xl p-5 h-64 flex justify-center items-center">
             {activeAsset &&
               (assetProvider?.assetType === "doc" ? (
                 <View className="flex flex-col gap-2 items-center">

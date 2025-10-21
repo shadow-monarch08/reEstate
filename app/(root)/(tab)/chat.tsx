@@ -20,6 +20,7 @@ const Chat = () => {
     setActiveConversationData,
     conversationtLoading,
   } = useChatStore();
+
   const handelCardPress = (item: ActiveConversationData) => {
     setActiveConversationData(item);
     router.push(`/chat/conversation`);

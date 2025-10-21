@@ -50,7 +50,7 @@ const MediaModal: React.FC<props> = ({ content }) => {
           exiting={FadeOutDown.duration(150)}
           className="h-fit w-full rounded-3xl bg-white overflow-hidden shadow-black-100 shadow-md"
         >
-          <View className="size-full bg-primary-100 items-center justify-evenly gap-5 flex flex-row flex-wrap p-5">
+          <View className="size-full bg-primary-100 flex flex-row items-center justify-evenly gap-5 flex-wrap p-5">
             {content.map((item, i) => (
               <Animated.View
                 entering={FadeInDown.delay(i * 50).duration(200)}

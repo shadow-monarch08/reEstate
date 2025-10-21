@@ -2,7 +2,7 @@ import { Text, TouchableOpacity, Image } from "react-native";
 import React from "react";
 import { ButtonProps } from "./types";
 
-const Button: React.FC<ButtonProps> = ({
+const CustomButton: React.FC<ButtonProps> = ({
   text,
   handlePress,
   image,
@@ -20,4 +20,4 @@ const Button: React.FC<ButtonProps> = ({
   );
 };
 
-export default React.memo(Button);
+export default React.memo(CustomButton);

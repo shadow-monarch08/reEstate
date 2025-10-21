@@ -39,8 +39,7 @@ import Modal from "react-native-modal";
 import { getConversation } from "@/lib/database/localStore";
 import { MapDisplay, MapModal } from "@/components/MapDisplay";
 import { NoResult } from "@/components/NoResult";
-import LikeButton from "@/components/atoms/LikeButton";
-import Button from "@/components/atoms/Button";
+import { CustomButton, LikeButton } from "@/components/atoms/Button";
 
 const PropertySpec = ({
   icon,
@@ -167,12 +166,6 @@ const IndicatorItem = ({
     </Pressable>
   );
 };
-
-// const PropertyShareModal = React.memo(() => {
-//   return(
-
-//   )
-// })
 
 const Property = () => {
   const pagerViewRef = useRef<PagerView>(null);
@@ -515,7 +508,11 @@ const Property = () => {
                   ${propertyDetail?.data?.price}
                 </Text>
               </View>
-              <Button text="Booking Now" buttonStyle="z-10" />
+              <CustomButton
+                text="Booking Now"
+                buttonStyle="z-10"
+                handlePress={() => router.push("/properties/booking")}
+              />
             </View>
           </View>
           <Portal>

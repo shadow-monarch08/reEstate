@@ -91,7 +91,7 @@ const HeaderComponent = React.memo(() => {
             <TouchableOpacity>
               <Image
                 source={icons.forward}
-                className="size-8"
+                className="size-7"
                 tintColor="#666876"
               />
             </TouchableOpacity>
@@ -105,7 +105,7 @@ const HeaderComponent = React.memo(() => {
             <TouchableOpacity>
               <Image
                 source={icons.more}
-                className="size-7"
+                className="size-7 rotate-90"
                 tintColor="#666876"
               />
             </TouchableOpacity>

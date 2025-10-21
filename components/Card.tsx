@@ -10,7 +10,7 @@ import { formatTimestamp, timeSince } from "@/utils";
 import React from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
-import LikeButton from "./atoms/LikeButton";
+import { LikeButton } from "./atoms/Button";
 
 export interface Props {
   onPress?: () => void;

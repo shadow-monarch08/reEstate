@@ -13,11 +13,20 @@ const UserImageMessage = ({ msg }: { msg: UserImageMessageType }) => {
   const { bus } = useChatStore();
   return (
     <UserMessageWrapper msg={msg} onPress={() => {}}>
-      <View className="relative w-[15rem] h-72 overflow-hidden">
+      <View
+        className="relative overflow-hidden"
+        style={
+          (msg.img_height ?? 288) < 288
+            ? { width: msg.img_width, height: msg.img_height }
+            : { width: 240, height: 288 }
+        }
+      >
         {msg.device_path ? (
           <Image
-            className="h-full w-full rounded-[1rem]"
+            className="size-full rounded-[1rem]"
             source={{ uri: msg.device_path }}
+            resizeMode="contain"
+            resizeMethod="resize"
           />
         ) : (
           <View className="h-full w-full rounded-[1rem] bg-blue-300 flex justify-center items-center">

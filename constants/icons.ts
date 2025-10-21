@@ -29,6 +29,7 @@ import dumbell from "@/assets/icons/dumbell.png";
 import duplex from "@/assets/icons/duplex.png";
 import dustbin from "@/assets/icons/dustbin.png";
 import edit from "@/assets/icons/edit.png";
+import error from "@/assets/icons/error.png";
 import expand from "@/assets/icons/expand.png";
 import filter from "@/assets/icons/filter.png";
 import forward from "@/assets/icons/forward.png";
@@ -119,6 +120,7 @@ export default {
   duplex,
   dustbin,
   edit,
+  error,
   expand,
   filter,
   forward,

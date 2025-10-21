@@ -6,3 +6,8 @@ export type ButtonProps = {
   image?: ImageSourcePropType;
   buttonStyle?: string;
 };
+
+export type CounterButttonProps = {
+  value: number;
+  handelValue: (param: number) => void;
+};

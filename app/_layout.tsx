@@ -8,10 +8,10 @@ import GlobalProvider from "@/lib/global-provider";
 import { initializeDatabase } from "@/lib/database/db";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { FilterModal } from "@/components/FilterModal";
 import { useUserStore } from "@/lib/zustand/store/useUserStore";
 import { Provider as PaperProvider } from "react-native-paper";
 import { MediaManager } from "@/lib/mediaManager";
+import { FilterModal } from "@/features/properties/components/filter";
 
 export default function RootLayout() {
   const { fetchUser } = useUserStore();
@@ -43,14 +43,14 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PaperProvider>
-        <GlobalProvider>
-          <BottomSheetModalProvider>
+      <BottomSheetModalProvider>
+        <PaperProvider>
+          <GlobalProvider>
             <Stack screenOptions={{ headerShown: false }} />
             <FilterModal />
-          </BottomSheetModalProvider>
-        </GlobalProvider>
-      </PaperProvider>
+          </GlobalProvider>
+        </PaperProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
